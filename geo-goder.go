@@ -217,31 +217,39 @@ type Tags struct  {
 	street string
 }
 
-const insQuery  = `INSERT INTO addresses(node_id, housenumber, street, centroid, coords)
- values($1, $2, $3, ST_MakePoint($4, $5), ST_MakePolygon(ST_GeomFromText($6)));`
+// Query for addresses
+//const insQuery  = `INSERT INTO addresses(node_id, housenumber, street, centroid, coords)
+// values($1, $2, $3, ST_MakePoint($4, $5), ST_MakePolygon(ST_GeomFromText($6)));`
+const insQuery  = `INSERT INTO cities(node_id, name, centroid, coords)
+ values($1, $2, ST_MakePoint($3, $4), ST_MakePolygon(ST_GeomFromText($5)));`
 func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]string, pg_db *sql.DB){
 	marshall := JsonWay{ way.ID, "way", way.Tags/*, way.NodeIDs*/, centroid, latlons, }
 	json, _ := json.Marshal(marshall)
 	fmt.Println(string(json))
-//	var linestring string;
-//	linestring = "LINESTRING("
-//	for _, latlon := range latlons{
-//		linestring += fmt.Sprintf("%s %s,",latlon["lon"], latlon["lat"])
-//	}
-//	linestring = linestring[:len(linestring) - 1]
-//	linestring += ")"
-//	insert_query, err := pg_db.Prepare(insQuery)
-//	defer insert_query.Close()
-//	if err != nil {
-//		fmt.Printf("Query preparation error -->%v\n", err)
-//		panic("Test query error")
-//	}
+
+// For addresses
+	var linestring string;
+	linestring = "LINESTRING("
+	for _, latlon := range latlons{
+		linestring += fmt.Sprintf("%s %s,",latlon["lon"], latlon["lat"])
+	}
+	linestring = linestring[:len(linestring) - 1]
+	linestring += ")"
+	insert_query, err := pg_db.Prepare(insQuery)
+	defer insert_query.Close()
+	if err != nil {
+		fmt.Printf("Query preparation error -->%v\n", err)
+		panic("Test query error")
+	}
+	// For addresses
 //	_, err = insert_query.Exec(way.ID, way.Tags["addr:housenumber"], way.Tags["addr:street"], centroid["lon"], centroid["lat"], linestring)
-//
-//	if err != nil {
-//		fmt.Printf("Query execution error -->%v\n", err)
-//		panic("Error")
-//	}
+	// For cities
+	_, err = insert_query.Exec(way.ID, way.Tags["name"], centroid["lon"], centroid["lat"], linestring)
+
+	if err != nil {
+		fmt.Printf("Query execution error -->%v\n", err)
+		panic("Error")
+	}
 
 }
 
