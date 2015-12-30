@@ -1,0 +1,39 @@
+
+# Database Adapter
+psycopg2
+
+
+# Django stuff
+Django
+
+# for bcrypt passwords
+bcrypt
+
+# Templates
+django_compressor
+
+# Celery: Message queue
+celery
+django-celery
+
+# L10n/i18n
+#Babel
+#-e git://github.com/clouserw/tower.git#egg=tower
+
+# Caching
+python-memcached
+
+# Logging
+logutils
+
+# Mixins
+django-braces
+django-model-utils
+bpython
+
+# Admin
+django-debug-toolbar
+
+jsonfield==1.0.3
+django-geojson==2.8.1
+django-leaflet==0.17.1

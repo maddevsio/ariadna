@@ -1,0 +1,5 @@
+# Test dependencies go here.
+-r base.txt
+
+# Testing
+coverage

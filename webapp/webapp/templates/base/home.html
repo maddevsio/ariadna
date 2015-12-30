@@ -1,0 +1,57 @@
+{% extends "_layouts/base.html" %}
+{% load i18n %}
+{% load static %}
+{% load leaflet_tags %}
+{% load geojson_tags %}
+{% load json_tags %}
+{% block css %}
+    {{ block.super }}
+    {% leaflet_css %}
+<style>
+    .leaflet-container {  /* all maps */
+        width:  100%;
+        height: 800px;
+    }
+
+</style>
+    <!--<link href="{% static "newmanager/css/leaflet.label.css" %}" rel="stylesheet">-->
+{% endblock css %}
+
+{% block content %}
+
+    {% leaflet_map "surcharge_zones_map" callback="main_map_init" %}
+
+    <script type="text/javascript">
+        var zonesTitles = {{ addresses|to_js_zone|safe}};
+
+        function main_map_init(map, options) {
+            var polygons = {{addresses|geojsonfeature:":coords"|safe}};
+            var geoJsonLayers  = L.geoJson(polygons);
+            geoJsonLayers.addTo(map);
+            var i = 0;
+            for(var layerKey in geoJsonLayers._layers){
+                var layer = geoJsonLayers._layers[layerKey];
+                var title = zonesTitles[i];
+                if (title.cost > 0 ){
+                    layer.setStyle({fillColor: '#dd0a2b'})
+                }
+//                if(title.id == layer.feature.id) {
+//                    var label = new L.Label();
+//                    label.setContent(zonesTitles[i].name);
+//                    label.setLatLng(layer.getBounds().getCenter());
+//                    map.showLabel(label);
+//                }
+                i++
+            }
+
+            map.setZoom(12);
+        }
+    </script>
+
+{% endblock content %}
+
+{% block js %}
+    {{ block.super }}
+    {% leaflet_js %}
+    <!--<script src="{% static "newmanager/js/leaflet.label.js" %}"></script>-->
+{% endblock js %}

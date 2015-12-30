@@ -1,0 +1,8 @@
+# Local development dependencies go here
+-r test.txt
+
+# Deployment
+Fabric
+
+# Documentation
+Sphinx
