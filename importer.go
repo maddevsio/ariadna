@@ -76,7 +76,7 @@ func main() {
 	db := openLevelDB("db")
 	defer db.Close()
 
-	tags := getCitiesTags()
+	tags := buildTags("place~city")
 	Cities := run(decoder, db, tags)
 	file = openFile(config.PbfPath)
 	defer file.Close()
@@ -84,7 +84,7 @@ func main() {
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
-	tags = getVillageTags()
+	tags = buildTags("place~village")
 	Villages := run(decoder, db, tags)
 
 	file = openFile(config.PbfPath)
@@ -93,7 +93,7 @@ func main() {
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
-	tags = getSubUrbTags()
+	tags = buildTags("place~suburb")
 	SubUrbs := run(decoder, db, tags)
 
 	file = openFile(config.PbfPath)
@@ -102,7 +102,7 @@ func main() {
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
-	tags = getAddressTags()
+	tags = buildTags("addr:street+addr:housenumber")
 	Addresses := run(decoder, db, tags)
 
 	for _, address := range Addresses {
@@ -116,7 +116,7 @@ func main() {
 				cityName = city.Tags["name"]
 			}
 		}
-		for _, village := range Villages{
+		for _, village := range Villages {
 			polygon := geo.NewPolygon(village.Nodes)
 			if polygon.Contains(geo.NewPoint(lat, lng)) {
 				villageName = village.Tags["name"]
@@ -130,18 +130,18 @@ func main() {
 		}
 		p := gj.NewPointGeometry([]float64{lat, lng})
 		var points [][][]float64
-		for _, point := range address.Nodes{
+		for _, point := range address.Nodes {
 			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
 		}
 
 		pg := gj.NewPolygonFeature(points)
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
 		row, err := client.Index().
-			Index("addresses").
-			Type("address").
-			Id(strconv.FormatInt(address.ID, 10)).
-			BodyJson(marshall).
-			Do()
+		Index("addresses").
+		Type("address").
+		Id(strconv.FormatInt(address.ID, 10)).
+		BodyJson(marshall).
+		Do()
 
 		if err != nil {
 			fmt.Println(err)
@@ -154,7 +154,7 @@ func main() {
 
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
-	tags = getAddressTags()
+	tags = buildTags("addr:street+addr:housenumber")
 	AddrNodes := processNodes(decoder, db, tags)
 
 	for _, address := range AddrNodes {
@@ -166,7 +166,7 @@ func main() {
 				cityName = city.Tags["name"]
 			}
 		}
-		for _, village := range Villages{
+		for _, village := range Villages {
 			polygon := geo.NewPolygon(village.Nodes)
 			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
 				villageName = village.Tags["name"]
@@ -199,7 +199,7 @@ func main() {
 
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
-	tags = getBuildingTags()
+	tags = buildTags("building,shop")
 	BNodes := processNodes(decoder, db, tags)
 
 	for _, address := range BNodes {
@@ -211,7 +211,7 @@ func main() {
 				cityName = city.Tags["name"]
 			}
 		}
-		for _, village := range Villages{
+		for _, village := range Villages {
 			polygon := geo.NewPolygon(village.Nodes)
 			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
 				villageName = village.Tags["name"]
@@ -245,7 +245,7 @@ func main() {
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
-	tags = getBuildingTags()
+	tags = buildTags("building,shop")
 	Buildings := run(decoder, db, tags)
 
 	for _, address := range Buildings {
@@ -259,7 +259,7 @@ func main() {
 				cityName = city.Tags["name"]
 			}
 		}
-		for _, village := range Villages{
+		for _, village := range Villages {
 			polygon := geo.NewPolygon(village.Nodes)
 			if polygon.Contains(geo.NewPoint(lat, lng)) {
 				villageName = village.Tags["name"]
@@ -273,7 +273,7 @@ func main() {
 		}
 		p := gj.NewPointGeometry([]float64{lat, lng})
 		var points [][][]float64
-		for _, point := range address.Nodes{
+		for _, point := range address.Nodes {
 			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
 		}
 
@@ -296,33 +296,13 @@ func main() {
 
 }
 
-func getCitiesTags() map[string][]string {
-	tags := make(map[string][]string)
-	tags["place~city"] = []string{"place~city"}
-	return tags
-}
 
-func getVillageTags() map[string][]string {
-	tags := make(map[string][]string)
-	tags["place~village"] = []string{"place~village"}
-	return tags
-}
-func getSubUrbTags() map[string][]string {
-	tags := make(map[string][]string)
-	tags["place~suburb"] = []string{"place~suburb"}
-	return tags
-}
-func getAddressTags() map[string][]string {
-	tags := make(map[string][]string)
-	tags["addr:street+addr:housenumber"] = []string{"addr:street", "addr:housenumber"}
-	return tags
-}
-
-func getBuildingTags()map[string][]string{
-	tags := make(map[string][]string)
-	tags["building"] = []string{"building"}
-	tags["shop"] = []string{"shop"}
-	return tags
+func buildTags(tagList string) map[string][]string {
+	conditions := make(map[string][]string)
+	for _, group := range strings.Split(tagList, ",") {
+		conditions[group] = strings.Split(group, "+")
+	}
+	return conditions
 }
 
 func processNodes(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) []JsonNode {
