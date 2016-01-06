@@ -1,1 +1,0 @@
-update addresses set city='Бишкек' from (select addresses.id, st_contains(cities.coords, addresses.centroid) from addresses,cities where cities.name='Бишкек' and st_contains(cities.coords, addresses.centroid) = 't') as subquery where addresses.id=subquery.id;
