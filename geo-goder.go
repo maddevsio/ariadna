@@ -32,14 +32,12 @@ import (
 
 type Settings struct {
 	PbfPath   string
-	Tags      map[string][]string
 	BatchSize int
 }
 
 func getSettings() Settings {
 
 	// command line flags
-	tagList := flag.String("tags", "", "comma-separated list of valid tags, group AND conditions with a +")
 	batchSize := flag.Int("batch", 50000, "batch leveldb writes in batches of this size")
 
 	flag.Parse()
@@ -49,21 +47,7 @@ func getSettings() Settings {
 		log.Fatal("invalid args, you must specify a PBF file")
 	}
 
-	// invalid tags
-	if ( len(*tagList) < 1 ) {
-		log.Fatal("Nothing to do, you must specify tags to match against")
-	}
-
-	// parse tag conditions
-	conditions := make(map[string][]string)
-	for _, group := range strings.Split(*tagList, ",") {
-		conditions[group] = strings.Split(group, "+")
-	}
-
-	// fmt.Print(conditions, len(conditions))
-	// os.Exit(1)
-
-	return Settings{args[0], conditions, *batchSize }
+	return Settings{args[0], *batchSize }
 }
 
 func main() {
@@ -85,11 +69,11 @@ func main() {
 	if err != nil {
 		// Handle error
 	}
-//	_, err = client.CreateIndex("addresses").Do()
-//	if err != nil {
-//		// Handle error
-//		panic(err)
-//	}
+	_, err = client.CreateIndex("addresses").Do()
+	if err != nil {
+		// Handle error
+		fmt.Println(err)
+	}
 
 	db := openLevelDB("db")
 	defer db.Close()
@@ -126,10 +110,7 @@ func main() {
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
 	tags = getAddressTags()
-	//	fmt.Println(tags)
 	Addresses := run(decoder, db, tags, pg_db)
-	//	fmt.Println(Addresses)
-	i := 0
 
 	for _, address := range Addresses {
 		var cityName, villageName, suburbName string
@@ -155,21 +136,17 @@ func main() {
 			}
 		}
 		p := gj.NewPointGeometry([]float64{lat, lng})
-//		geo_json, _ := p.MarshalJSON()
 		var points [][][]float64
 		for _, point := range address.Nodes{
 			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
 		}
 
 		pg := gj.NewPolygonFeature(points)
-//		geom_json, _ := pg.MarshalJSON()
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
-//		json, _ := json.Marshal(marshall)
-//		fmt.Println(string(json))
 		row, err := client.Index().
 			Index("addresses").
 			Type("address").
-			Id(strconv.Itoa(i)).
+			Id(strconv.FormatInt(address.ID, 10)).
 			BodyJson(marshall).
 			Do()
 
@@ -178,8 +155,181 @@ func main() {
 			break
 		}
 		fmt.Println(row.Created, row.Id)
-		i++
 	}
+	file = openFile(config.PbfPath)
+	defer file.Close()
+
+	decoder = osmpbf.NewDecoder(file)
+	err = decoder.Start(runtime.GOMAXPROCS(-1))
+	tags = getAddressTags()
+	//	fmt.Println(tags)
+	AddrNodes := processNodes(decoder, db, tags, pg_db)
+	//	fmt.Println(Addresses)
+
+	for _, address := range AddrNodes {
+		var cityName, villageName, suburbName string
+		for _, city := range Cities {
+			polygon := geo.NewPolygon(city.Nodes)
+
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				cityName = city.Tags["name"]
+			}
+		}
+		for _, village := range Villages{
+			polygon := geo.NewPolygon(village.Nodes)
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				villageName = village.Tags["name"]
+			}
+		}
+		for _, suburb := range SubUrbs {
+			polygon := geo.NewPolygon(suburb.Nodes)
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				suburbName = suburb.Tags["name"]
+			}
+		}
+		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
+		//		geo_json, _ := p.MarshalJSON()
+//		var points [][][]float64
+//		for _, point := range address.Nodes{
+//			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
+//		}
+
+//		pg := gj.NewPolygonFeature(points)
+		//		geom_json, _ := pg.MarshalJSON()
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
+		//		json, _ := json.Marshal(marshall)
+		//		fmt.Println(string(json))
+		row, err := client.Index().
+		Index("addresses").
+		Type("address").
+		Id(strconv.FormatInt(address.ID, 10)).
+		BodyJson(marshall).
+		Do()
+
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		fmt.Println(row.Created, row.Id)
+	}
+
+	file = openFile(config.PbfPath)
+	defer file.Close()
+
+	decoder = osmpbf.NewDecoder(file)
+	err = decoder.Start(runtime.GOMAXPROCS(-1))
+	tags = getBuildingTags()
+	//	fmt.Println(tags)
+	BNodes := processNodes(decoder, db, tags, pg_db)
+	//	fmt.Println(Addresses)
+
+	for _, address := range BNodes {
+		var cityName, villageName, suburbName string
+		for _, city := range Cities {
+			polygon := geo.NewPolygon(city.Nodes)
+
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				cityName = city.Tags["name"]
+			}
+		}
+		for _, village := range Villages{
+			polygon := geo.NewPolygon(village.Nodes)
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				villageName = village.Tags["name"]
+			}
+		}
+		for _, suburb := range SubUrbs {
+			polygon := geo.NewPolygon(suburb.Nodes)
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				suburbName = suburb.Tags["name"]
+			}
+		}
+		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
+		//		geo_json, _ := p.MarshalJSON()
+		//		var points [][][]float64
+		//		for _, point := range address.Nodes{
+		//			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
+		//		}
+
+		//		pg := gj.NewPolygonFeature(points)
+		//		geom_json, _ := pg.MarshalJSON()
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
+		//		json, _ := json.Marshal(marshall)
+		//		fmt.Println(string(json))
+		row, err := client.Index().
+		Index("addresses").
+		Type("address").
+		Id(strconv.FormatInt(address.ID, 10)).
+		BodyJson(marshall).
+		Do()
+
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		fmt.Println(row.Created, row.Id)
+	}
+
+	file = openFile(config.PbfPath)
+	defer file.Close()
+
+	decoder = osmpbf.NewDecoder(file)
+	err = decoder.Start(runtime.GOMAXPROCS(-1))
+
+	tags = getBuildingTags()
+	//	fmt.Println(tags)
+	Buildings := run(decoder, db, tags, pg_db)
+	//	fmt.Println(Addresses)
+
+	for _, address := range Buildings {
+		var cityName, villageName, suburbName string
+		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
+		var lng, _ = strconv.ParseFloat(address.Centroid["lon"], 64)
+		for _, city := range Cities {
+			polygon := geo.NewPolygon(city.Nodes)
+
+			if polygon.Contains(geo.NewPoint(lat, lng)) {
+				cityName = city.Tags["name"]
+			}
+		}
+		for _, village := range Villages{
+			polygon := geo.NewPolygon(village.Nodes)
+			if polygon.Contains(geo.NewPoint(lat, lng)) {
+				villageName = village.Tags["name"]
+			}
+		}
+		for _, suburb := range SubUrbs {
+			polygon := geo.NewPolygon(suburb.Nodes)
+			if polygon.Contains(geo.NewPoint(lat, lng)) {
+				suburbName = suburb.Tags["name"]
+			}
+		}
+		p := gj.NewPointGeometry([]float64{lat, lng})
+		//		geo_json, _ := p.MarshalJSON()
+		var points [][][]float64
+		for _, point := range address.Nodes{
+			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
+		}
+
+		pg := gj.NewPolygonFeature(points)
+		//		geom_json, _ := pg.MarshalJSON()
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
+		//		json, _ := json.Marshal(marshall)
+		//		fmt.Println(string(json))
+		row, err := client.Index().
+		Index("addresses").
+		Type("address").
+		Id(strconv.FormatInt(address.ID, 10)).
+		BodyJson(marshall).
+		Do()
+
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		fmt.Println(row.Created, row.Id)
+	}
+
 
 }
 
@@ -205,9 +355,10 @@ func getAddressTags() map[string][]string {
 	return tags
 }
 
-func getBuildingTags(){
+func getBuildingTags()map[string][]string{
 	tags := make(map[string][]string)
-	tags["building,shop"] = []string{"building", "shop"}
+	tags["building"] = []string{"building"}
+	tags["shop"] = []string{"shop"}
 	return tags
 }
 
