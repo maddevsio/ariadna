@@ -10,7 +10,6 @@ package main
 
 import (
 	"log"
-	"encoding/json"
 	"fmt"
 	"os"
 	"bytes"
@@ -410,7 +409,6 @@ type JsonNode struct {
 	Lat  float64             `json:"lat"`
 	Lon  float64             `json:"lon"`
 	Tags map[string]string   `json:"tags"`
-	//	Timestamp time.Time           `json:"timestamp"`
 }
 
 type JsonRelation struct {
@@ -419,8 +417,6 @@ type JsonRelation struct {
 	Tags     map[string]string   `json:"tags"`
 	Centroid map[string]string   `json:"centroid"`
 	Nodes    []map[string]string `json:"nodes"`
-
-	//	Timestamp time.Time           `json:"timestamp"`
 }
 
 type JsonEsIndex struct {
@@ -437,8 +433,6 @@ type JsonEsIndex struct {
 
 func onNode(node *osmpbf.Node) JsonNode {
 	marshall := JsonNode{node.ID, "node", node.Lat, node.Lon, node.Tags}
-	//	json, _ := json.Marshal(marshall)
-	//	fmt.Println(string(json))
 	return marshall
 }
 
@@ -448,9 +442,8 @@ type JsonWay struct {
 	Tags     map[string]string   `json:"tags"`
 	Centroid map[string]string   `json:"centroid"`
 	Nodes    [] *geo.Point             `json:"nodes"`
-	//	Nodes    []map[string]string `json:"nodes"`
-	//	Timestamp time.Time           `json:"timestamp"`
 }
+
 type Tags struct {
 	housenumber string
 	street      string
@@ -467,23 +460,6 @@ func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]str
 	return marshall
 
 }
-
-func onRelation(way *osmpbf.Relation, latlons []map[string]string, centroid map[string]string) {
-	// do nothing (yet)
-	marshall := JsonRelation{way.ID, "way", way.Tags/*, way.NodeIDs*/, centroid, latlons, }
-	json, _ := json.Marshal(marshall)
-	fmt.Println(string(json))
-}
-
-// write to leveldb immediately
-func cacheStore(db *leveldb.DB, node *osmpbf.Node) {
-	id, val := formatLevelDB(node)
-	err := db.Put([]byte(id), []byte(val), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 // queue a leveldb write in a batch
 func cacheQueue(batch *leveldb.Batch, node *osmpbf.Node) {
 	id, val := formatLevelDB(node)
