@@ -21,12 +21,10 @@ import (
 	"strings"
 	"runtime"
 	"gopkg.in/olivere/elastic.v3"
-	"database/sql"
 	"github.com/kellydunn/golang-geo"
 	gj "github.com/paulmach/go.geojson"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/qedus/osmpbf"
-	_ "github.com/lib/pq"
 )
 
 
@@ -78,13 +76,8 @@ func main() {
 	db := openLevelDB("db")
 	defer db.Close()
 
-	pg_db, err := sql.Open("postgres", "host=localhost user=geo password=geo dbname=geo sslmode=disable")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	tags := getCitiesTags()
-	Cities := run(decoder, db, tags, pg_db)
+	Cities := run(decoder, db, tags)
 	file = openFile(config.PbfPath)
 	defer file.Close()
 
@@ -92,7 +85,7 @@ func main() {
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
 	tags = getVillageTags()
-	Villages := run(decoder, db, tags, pg_db)
+	Villages := run(decoder, db, tags)
 
 	file = openFile(config.PbfPath)
 	defer file.Close()
@@ -101,7 +94,7 @@ func main() {
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
 	tags = getSubUrbTags()
-	SubUrbs := run(decoder, db, tags, pg_db)
+	SubUrbs := run(decoder, db, tags)
 
 	file = openFile(config.PbfPath)
 	defer file.Close()
@@ -110,7 +103,7 @@ func main() {
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
 	tags = getAddressTags()
-	Addresses := run(decoder, db, tags, pg_db)
+	Addresses := run(decoder, db, tags)
 
 	for _, address := range Addresses {
 		var cityName, villageName, suburbName string
@@ -162,9 +155,7 @@ func main() {
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 	tags = getAddressTags()
-	//	fmt.Println(tags)
-	AddrNodes := processNodes(decoder, db, tags, pg_db)
-	//	fmt.Println(Addresses)
+	AddrNodes := processNodes(decoder, db, tags)
 
 	for _, address := range AddrNodes {
 		var cityName, villageName, suburbName string
@@ -188,17 +179,7 @@ func main() {
 			}
 		}
 		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
-		//		geo_json, _ := p.MarshalJSON()
-//		var points [][][]float64
-//		for _, point := range address.Nodes{
-//			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
-//		}
-
-//		pg := gj.NewPolygonFeature(points)
-		//		geom_json, _ := pg.MarshalJSON()
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
-		//		json, _ := json.Marshal(marshall)
-		//		fmt.Println(string(json))
 		row, err := client.Index().
 		Index("addresses").
 		Type("address").
@@ -219,9 +200,7 @@ func main() {
 	decoder = osmpbf.NewDecoder(file)
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 	tags = getBuildingTags()
-	//	fmt.Println(tags)
-	BNodes := processNodes(decoder, db, tags, pg_db)
-	//	fmt.Println(Addresses)
+	BNodes := processNodes(decoder, db, tags)
 
 	for _, address := range BNodes {
 		var cityName, villageName, suburbName string
@@ -245,17 +224,7 @@ func main() {
 			}
 		}
 		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
-		//		geo_json, _ := p.MarshalJSON()
-		//		var points [][][]float64
-		//		for _, point := range address.Nodes{
-		//			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
-		//		}
-
-		//		pg := gj.NewPolygonFeature(points)
-		//		geom_json, _ := pg.MarshalJSON()
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
-		//		json, _ := json.Marshal(marshall)
-		//		fmt.Println(string(json))
 		row, err := client.Index().
 		Index("addresses").
 		Type("address").
@@ -277,9 +246,7 @@ func main() {
 	err = decoder.Start(runtime.GOMAXPROCS(-1))
 
 	tags = getBuildingTags()
-	//	fmt.Println(tags)
-	Buildings := run(decoder, db, tags, pg_db)
-	//	fmt.Println(Addresses)
+	Buildings := run(decoder, db, tags)
 
 	for _, address := range Buildings {
 		var cityName, villageName, suburbName string
@@ -305,17 +272,13 @@ func main() {
 			}
 		}
 		p := gj.NewPointGeometry([]float64{lat, lng})
-		//		geo_json, _ := p.MarshalJSON()
 		var points [][][]float64
 		for _, point := range address.Nodes{
 			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
 		}
 
 		pg := gj.NewPolygonFeature(points)
-		//		geom_json, _ := pg.MarshalJSON()
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
-		//		json, _ := json.Marshal(marshall)
-		//		fmt.Println(string(json))
 		row, err := client.Index().
 		Index("addresses").
 		Type("address").
@@ -362,7 +325,7 @@ func getBuildingTags()map[string][]string{
 	return tags
 }
 
-func processNodes(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string, pg_db *sql.DB) []JsonNode {
+func processNodes(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) []JsonNode {
 	var Nodes []JsonNode
 	batch := new(leveldb.Batch)
 
@@ -403,7 +366,7 @@ func processNodes(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string, p
 	return Nodes
 }
 
-func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string, pg_db *sql.DB) []JsonWay {
+func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) []JsonWay {
 	var Ways []JsonWay
 	batch := new(leveldb.Batch)
 
@@ -442,7 +405,7 @@ func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string, pg_db *sql
 					latlons, err := cacheLookup(db, v)
 					if err != nil { break }
 					var centroid = computeCentroid(latlons);
-					way := onWay(v, latlons, centroid, pg_db)
+					way := onWay(v, latlons, centroid)
 					Ways = append(Ways, way)
 				}
 
@@ -513,17 +476,7 @@ type Tags struct {
 	street      string
 }
 
-// Query for addresses
-//const insQuery  = `INSERT INTO addresses(node_id, housenumber, street, centroid, coords)
-// values($1, $2, $3, ST_MakePoint($4, $5), ST_MakePolygon(ST_GeomFromText($6)));`
-// Query for cities
-//const insQuery  = `INSERT INTO cities(node_id, name, centroid, coords)
-// values($1, $2, ST_MakePoint($3, $4), ST_MakePolygon(ST_GeomFromText($5)));`
-//const insQuery  = `INSERT INTO district (node_id, name, centroid, coords)
-// values($1, $2, ST_MakePoint($3, $4), ST_MakePolygon(ST_GeomFromText($5)));`
-const insQuery = `INSERT INTO road (node_id, name, centroid, coords)
- values($1, $2, ST_MakePoint($3, $4), ST_GeomFromText($5));`
-func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]string, pg_db *sql.DB) JsonWay {
+func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]string) JsonWay {
 	var points [] *geo.Point
 	for _, latlon := range latlons {
 		var lat, _ = strconv.ParseFloat(latlon["lat"], 64)
@@ -531,19 +484,11 @@ func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]str
 		points = append(points, geo.NewPoint(lat, lng))
 	}
 	marshall := JsonWay{way.ID, "way", way.Tags, centroid, points, }
-	//	json, _ := json.Marshal(marshall)
-	//	fmt.Println(string(json))
-
-	// For addresses
-
-	// For addresses
-	//	_, err = insert_query.Exec(way.ID, way.Tags["addr:housenumber"], way.Tags["addr:street"], centroid["lon"], centroid["lat"], linestring)
-	// For cities
 	return marshall
 
 }
 
-func onRelation(way *osmpbf.Relation, latlons []map[string]string, centroid map[string]string, pg_db *sql.DB) {
+func onRelation(way *osmpbf.Relation, latlons []map[string]string, centroid map[string]string) {
 	// do nothing (yet)
 	marshall := JsonRelation{way.ID, "way", way.Tags/*, way.NodeIDs*/, centroid, latlons, }
 	json, _ := json.Marshal(marshall)
