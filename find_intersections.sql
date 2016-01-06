@@ -17,7 +17,7 @@ FROM
     road as b
 WHERE
     ST_Touches(a.coords, b.coords)
-    AND a.node_id != b.node_id
+    AND a.node_id < b.node_id
 GROUP BY
     ST_Intersection(a.coords, b.coords),
     InterName
