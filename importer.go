@@ -46,64 +46,105 @@ func getSettings() Settings {
 
 	return Settings{args[0], *batchSize }
 }
-
-func main() {
-
-	// configuration
-	config := getSettings()
-
-
-	// open pbf file
-	file := openFile(config.PbfPath)
-	defer file.Close()
-
+func getDecoder(file *os.File) *osmpbf.Decoder{
 	decoder := osmpbf.NewDecoder(file)
 	err := decoder.Start(runtime.GOMAXPROCS(-1)) // use several goroutines for faster decoding
 	if err != nil {
 		log.Fatal(err)
 	}
+	return decoder
+}
+
+var Cities, Villages, Districts []JsonWay
+
+func main() {
+	config := getSettings()
+
+	db := openLevelDB("db")
+	defer db.Close()
+
+	file := openFile(config.PbfPath)
+	defer file.Close()
+	decoder := getDecoder(file)
+
 	client, err := elastic.NewClient()
 	if err != nil {
 		// Handle error
 	}
+
 	_, err = client.CreateIndex("addresses").Do()
 	if err != nil {
 		// Handle error
 		fmt.Println(err)
 	}
 
-	db := openLevelDB("db")
-	defer db.Close()
+	tags := buildTags("place~city,place~village,place~suburb")
+	Ways, _ := run(decoder, db, tags)
 
-	tags := buildTags("place~city")
-	Cities := run(decoder, db, tags)
-	file = openFile(config.PbfPath)
-	defer file.Close()
+	for _, node := range Ways{
+		switch node.Tags["place"] {
+		case "city":
+			Cities = append(Cities, node)
+		case "suburb":
+			Districts = append(Districts, node)
+		case "village":
+			Villages = append(Villages, node)
+		default:
+			fmt.Println("Unknown Node")
+		}
 
-	decoder = osmpbf.NewDecoder(file)
-	err = decoder.Start(runtime.GOMAXPROCS(-1))
-
-	tags = buildTags("place~village")
-	Villages := run(decoder, db, tags)
-
-	file = openFile(config.PbfPath)
-	defer file.Close()
-
-	decoder = osmpbf.NewDecoder(file)
-	err = decoder.Start(runtime.GOMAXPROCS(-1))
-
-	tags = buildTags("place~suburb")
-	SubUrbs := run(decoder, db, tags)
+	}
 
 	file = openFile(config.PbfPath)
 	defer file.Close()
+	decoder = getDecoder(file)
 
-	decoder = osmpbf.NewDecoder(file)
-	err = decoder.Start(runtime.GOMAXPROCS(-1))
+	tags = buildTags("addr:street+addr:housenumber,amenity,building,shop")
+	AddressWays, AddressNodes := run(decoder, db, tags)
+	JsonWaysToES(AddressWays, client)
+	JsonNodesToEs(AddressNodes, client)
+}
 
-	tags = buildTags("addr:street+addr:housenumber")
-	Addresses := run(decoder, db, tags)
+func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
+	for _, address := range Addresses {
+		var cityName, villageName, suburbName string
+		for _, city := range Cities {
+			polygon := geo.NewPolygon(city.Nodes)
 
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				cityName = city.Tags["name"]
+			}
+		}
+		for _, village := range Villages {
+			polygon := geo.NewPolygon(village.Nodes)
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				villageName = village.Tags["name"]
+			}
+		}
+		for _, suburb := range Districts {
+			polygon := geo.NewPolygon(suburb.Nodes)
+			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
+				suburbName = suburb.Tags["name"]
+			}
+		}
+		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
+		row, err := client.Index().
+		Index("addresses").
+		Type("address").
+		Id(strconv.FormatInt(address.ID, 10)).
+		BodyJson(marshall).
+		Do()
+
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		fmt.Println(row.Created, row.Id)
+	}
+
+}
+func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 	for _, address := range Addresses {
 		var cityName, villageName, suburbName string
 		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
@@ -121,7 +162,7 @@ func main() {
 				villageName = village.Tags["name"]
 			}
 		}
-		for _, suburb := range SubUrbs {
+		for _, suburb := range Districts {
 			polygon := geo.NewPolygon(suburb.Nodes)
 			if polygon.Contains(geo.NewPoint(lat, lng)) {
 				suburbName = suburb.Tags["name"]
@@ -136,11 +177,11 @@ func main() {
 		pg := gj.NewPolygonFeature(points)
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
 		row, err := client.Index().
-		Index("addresses").
-		Type("address").
-		Id(strconv.FormatInt(address.ID, 10)).
-		BodyJson(marshall).
-		Do()
+			Index("addresses").
+			Type("address").
+			Id(strconv.FormatInt(address.ID, 10)).
+			BodyJson(marshall).
+			Do()
 
 		if err != nil {
 			fmt.Println(err)
@@ -148,153 +189,7 @@ func main() {
 		}
 		fmt.Println(row.Created, row.Id)
 	}
-	file = openFile(config.PbfPath)
-	defer file.Close()
-
-	decoder = osmpbf.NewDecoder(file)
-	err = decoder.Start(runtime.GOMAXPROCS(-1))
-	tags = buildTags("addr:street+addr:housenumber")
-	AddrNodes := processNodes(decoder, db, tags)
-
-	for _, address := range AddrNodes {
-		var cityName, villageName, suburbName string
-		for _, city := range Cities {
-			polygon := geo.NewPolygon(city.Nodes)
-
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				cityName = city.Tags["name"]
-			}
-		}
-		for _, village := range Villages {
-			polygon := geo.NewPolygon(village.Nodes)
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				villageName = village.Tags["name"]
-			}
-		}
-		for _, suburb := range SubUrbs {
-			polygon := geo.NewPolygon(suburb.Nodes)
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				suburbName = suburb.Tags["name"]
-			}
-		}
-		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
-		row, err := client.Index().
-		Index("addresses").
-		Type("address").
-		Id(strconv.FormatInt(address.ID, 10)).
-		BodyJson(marshall).
-		Do()
-
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		fmt.Println(row.Created, row.Id)
-	}
-
-	file = openFile(config.PbfPath)
-	defer file.Close()
-
-	decoder = osmpbf.NewDecoder(file)
-	err = decoder.Start(runtime.GOMAXPROCS(-1))
-	tags = buildTags("building,shop")
-	BNodes := processNodes(decoder, db, tags)
-
-	for _, address := range BNodes {
-		var cityName, villageName, suburbName string
-		for _, city := range Cities {
-			polygon := geo.NewPolygon(city.Nodes)
-
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				cityName = city.Tags["name"]
-			}
-		}
-		for _, village := range Villages {
-			polygon := geo.NewPolygon(village.Nodes)
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				villageName = village.Tags["name"]
-			}
-		}
-		for _, suburb := range SubUrbs {
-			polygon := geo.NewPolygon(suburb.Nodes)
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				suburbName = suburb.Tags["name"]
-			}
-		}
-		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
-		row, err := client.Index().
-		Index("addresses").
-		Type("address").
-		Id(strconv.FormatInt(address.ID, 10)).
-		BodyJson(marshall).
-		Do()
-
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		fmt.Println(row.Created, row.Id)
-	}
-
-	file = openFile(config.PbfPath)
-	defer file.Close()
-
-	decoder = osmpbf.NewDecoder(file)
-	err = decoder.Start(runtime.GOMAXPROCS(-1))
-
-	tags = buildTags("building,shop")
-	Buildings := run(decoder, db, tags)
-
-	for _, address := range Buildings {
-		var cityName, villageName, suburbName string
-		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
-		var lng, _ = strconv.ParseFloat(address.Centroid["lon"], 64)
-		for _, city := range Cities {
-			polygon := geo.NewPolygon(city.Nodes)
-
-			if polygon.Contains(geo.NewPoint(lat, lng)) {
-				cityName = city.Tags["name"]
-			}
-		}
-		for _, village := range Villages {
-			polygon := geo.NewPolygon(village.Nodes)
-			if polygon.Contains(geo.NewPoint(lat, lng)) {
-				villageName = village.Tags["name"]
-			}
-		}
-		for _, suburb := range SubUrbs {
-			polygon := geo.NewPolygon(suburb.Nodes)
-			if polygon.Contains(geo.NewPoint(lat, lng)) {
-				suburbName = suburb.Tags["name"]
-			}
-		}
-		p := gj.NewPointGeometry([]float64{lat, lng})
-		var points [][][]float64
-		for _, point := range address.Nodes {
-			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
-		}
-
-		pg := gj.NewPolygonFeature(points)
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
-		row, err := client.Index().
-		Index("addresses").
-		Type("address").
-		Id(strconv.FormatInt(address.ID, 10)).
-		BodyJson(marshall).
-		Do()
-
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		fmt.Println(row.Created, row.Id)
-	}
-
-
 }
-
 
 func buildTags(tagList string) map[string][]string {
 	conditions := make(map[string][]string)
@@ -304,49 +199,9 @@ func buildTags(tagList string) map[string][]string {
 	return conditions
 }
 
-func processNodes(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) []JsonNode {
-	var Nodes []JsonNode
-	batch := new(leveldb.Batch)
-
-	var nc uint64
-	for {
-		if v, err := d.Decode(); err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal(err)
-		} else {
-			switch v := v.(type) {
-
-			case *osmpbf.Node:
-				nc++
-				cacheQueue(batch, v)
-				if batch.Len() > 50000 {
-					cacheFlush(db, batch)
-				}
-				if !hasTags(v.Tags) { break }
-				v.Tags = trimTags(v.Tags)
-
-				if containsValidTags(v.Tags, tags) {
-					node := onNode(v)
-					Nodes = append(Nodes, node)
-				}
-
-
-			case *osmpbf.Way:
-			case *osmpbf.Relation:
-				continue
-			default:
-
-				log.Fatalf("unknown type %T\n", v)
-
-			}
-		}
-	}
-	return Nodes
-}
-
-func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) []JsonWay {
+func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay, []JsonNode){
 	var Ways []JsonWay
+	var Nodes []JsonNode
 	batch := new(leveldb.Batch)
 
 	var nc, wc, rc uint64
@@ -368,7 +223,8 @@ func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) []JsonWay 
 				v.Tags = trimTags(v.Tags)
 
 				if containsValidTags(v.Tags, tags) {
-					//					onNode(v)
+					node := onNode(v)
+					Nodes = append(Nodes, node)
 				}
 
 			case *osmpbf.Way:
@@ -400,7 +256,19 @@ func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) []JsonWay 
 			}
 		}
 	}
-	return Ways
+	return Ways, Nodes
+}
+type JsonWay struct {
+	ID       int64               `json:"id"`
+	Type     string              `json:"type"`
+	Tags     map[string]string   `json:"tags"`
+	Centroid map[string]string   `json:"centroid"`
+	Nodes    [] *geo.Point             `json:"nodes"`
+}
+
+type Tags struct {
+	housenumber string
+	street      string
 }
 
 type JsonNode struct {
@@ -434,19 +302,6 @@ type JsonEsIndex struct {
 func onNode(node *osmpbf.Node) JsonNode {
 	marshall := JsonNode{node.ID, "node", node.Lat, node.Lon, node.Tags}
 	return marshall
-}
-
-type JsonWay struct {
-	ID       int64               `json:"id"`
-	Type     string              `json:"type"`
-	Tags     map[string]string   `json:"tags"`
-	Centroid map[string]string   `json:"centroid"`
-	Nodes    [] *geo.Point             `json:"nodes"`
-}
-
-type Tags struct {
-	housenumber string
-	street      string
 }
 
 func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]string) JsonWay {
