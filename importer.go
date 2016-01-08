@@ -24,6 +24,9 @@ import (
 	gj "github.com/paulmach/go.geojson"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/qedus/osmpbf"
+	ggeo "github.com/paulmach/go.geo"
+	_ "github.com/lib/pq"
+	"database/sql"
 )
 
 
@@ -46,7 +49,7 @@ func getSettings() Settings {
 
 	return Settings{args[0], *batchSize }
 }
-func getDecoder(file *os.File) *osmpbf.Decoder{
+func getDecoder(file *os.File) *osmpbf.Decoder {
 	decoder := osmpbf.NewDecoder(file)
 	err := decoder.Start(runtime.GOMAXPROCS(-1)) // use several goroutines for faster decoding
 	if err != nil {
@@ -55,7 +58,7 @@ func getDecoder(file *os.File) *osmpbf.Decoder{
 	return decoder
 }
 
-var Cities, Villages, Districts []JsonWay
+var Cities, Villages, Districts, Roads []JsonWay
 
 func main() {
 	config := getSettings()
@@ -66,6 +69,7 @@ func main() {
 	file := openFile(config.PbfPath)
 	defer file.Close()
 	decoder := getDecoder(file)
+
 
 	client, err := elastic.NewClient()
 	if err != nil {
@@ -78,10 +82,11 @@ func main() {
 		fmt.Println(err)
 	}
 
+
 	tags := buildTags("place~city,place~village,place~suburb")
 	Ways, _ := run(decoder, db, tags)
 
-	for _, node := range Ways{
+	for _, node := range Ways {
 		switch node.Tags["place"] {
 		case "city":
 			Cities = append(Cities, node)
@@ -95,14 +100,198 @@ func main() {
 
 	}
 
+	//	file = openFile(config.PbfPath)
+	//	defer file.Close()
+	//	decoder = getDecoder(file)
+	//
+	//	tags = buildTags("addr:street+addr:housenumber,amenity,building,shop")
+	//	AddressWays, AddressNodes := run(decoder, db, tags)
+	//	JsonWaysToES(AddressWays, client)
+	//	JsonNodesToEs(AddressNodes, client)
+
 	file = openFile(config.PbfPath)
 	defer file.Close()
 	decoder = getDecoder(file)
 
-	tags = buildTags("addr:street+addr:housenumber,amenity,building,shop")
-	AddressWays, AddressNodes := run(decoder, db, tags)
-	JsonWaysToES(AddressWays, client)
-	JsonNodesToEs(AddressNodes, client)
+	tags = buildTags("highway")
+	Roads, _ = run(decoder, db, tags)
+//	var Intersections []JsonNode
+	fmt.Println("Searching all roads intersecitons")
+	Intersections := GetRoadIntersectionsFromPG()
+	JsonNodesToEs(Intersections, client)
+
+//	RoadsToPg()
+//	JsonNodesToEs(Intersections, client)
+}
+
+func RoadsToPg(){
+	pg_db, err := sql.Open("postgres", "host=localhost user=geo password=geo dbname=geo sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pg_db.Close()
+
+	_, err = pg_db.Query(`DROP TABLE IF EXISTS road;`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = pg_db.Query(`DROP TABLE IF EXISTS road_intersection;`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = pg_db.Query(`CREATE TABLE road (
+			id serial not null primary key,
+			node_id bigint not null,
+			name varchar(255) null,
+			coords geometry
+		);`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = pg_db.Query(`create table road_intersection (
+			id serial not null primary key,
+			icount bigint not null,
+			name varchar(200) null,
+			coords geometry
+		);`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Created tables")
+	fmt.Println("Populating...")
+	const insQuery = `INSERT INTO road (node_id, name, coords) values($1, $2, ST_GeomFromText($3));`
+	for _, road := range Roads{
+		linestring := "LINESTRING("
+
+		for _, point := range road.Nodes{
+			linestring += fmt.Sprintf("%s %s,", strconv.FormatFloat(point.Lng(), 'f', 16, 64), strconv.FormatFloat(point.Lat(), 'f', 16, 64))
+		}
+		linestring = linestring[:len(linestring) - 1]
+		linestring += ")"
+		insert_query, err := pg_db.Prepare(insQuery)
+
+		if err != nil {
+			panic(err)
+		}
+		defer insert_query.Close()
+
+		name := ""
+		if road.Tags["name"] != "" {
+			name = road.Tags["name"]
+		} else {
+			name = road.Tags["addr:name"]
+		}
+
+		_, err = insert_query.Exec(road.ID, name, linestring)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	searchQuery := `
+		INSERT INTO road_intersection (coords, icount, name)
+		(SELECT
+			ST_Intersection(a.coords, b.coords),
+			Count(Distinct a.node_id),
+			concat(a.name, ' ', b.name) as InterName
+
+		FROM
+			road as a,
+			road as b
+		WHERE
+			ST_Touches(a.coords, b.coords)
+			AND a.node_id != b.node_id
+		GROUP BY
+			ST_Intersection(a.coords, b.coords),
+			InterName
+		);
+	`
+	fmt.Println("Started searching intersections ...")
+	_, err = pg_db.Query(searchQuery)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+}
+type PGNode struct{
+	ID int64
+	Name string
+	Lng float64
+	Lat float64
+
+}
+func GetRoadIntersectionsFromPG() []JsonNode {
+	var Nodes []JsonNode
+	pg_db, err := sql.Open("postgres", "host=localhost user=geo password=geo dbname=geo sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pg_db.Close()
+	rows, err := pg_db.Query("SELECT id, name, st_x((st_dump(coords)).geom) as lng, st_y((st_dump(coords)).geom) as lat from road_intersection")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	for rows.Next() {
+		var node PGNode
+		rows.Scan(&node.ID, &node.Name, &node.Lng, &node.Lat)
+		tags := make(map[string]string)
+		tags["name"] = node.Name
+		jNode := JsonNode{node.ID, "node", node.Lat, node.Lng, tags}
+		Nodes = append(Nodes, jNode)
+	}
+	return Nodes
+}
+
+func GetRoadIntersections(done chan bool) []JsonNode {
+	var Intersections []JsonNode
+	for _, way := range Roads {
+		path := ggeo.NewPath()
+
+		for _, point := range way.Nodes {
+			path.Push(ggeo.NewPoint(point.Lng(), point.Lat()))
+		}
+		for _, way2 := range Roads {
+			line := ggeo.NewPath()
+			if way.ID == way2.ID {
+				continue
+			}
+			for _, point := range way2.Nodes {
+				line.Push(ggeo.NewPoint(point.Lng(), point.Lat()))
+			}
+			if path.Intersects(line) {
+				fmt.Println("Intersects")
+				points, segments := path.Intersection(line)
+				for i, _ := range points {
+					var FirstName string
+					var SecondName string
+					if way.Tags["name"] != "" {
+						FirstName = way.Tags["name"]
+					} else {
+						FirstName = way.Tags["addr:street"]
+					}
+					if way2.Tags["name"] != "" {
+						SecondName = way2.Tags["name"]
+					} else {
+						SecondName = way2.Tags["addr:street"]
+					}
+					tags := make(map[string]string)
+					tags["name"] = FirstName + " " + SecondName
+					InterSection := JsonNode{way.ID + way2.ID, "node", points[i].Lng(), points[i].Lat(), tags}
+					Intersections = append(Intersections, InterSection)
+					log.Printf("Intersection %d at %v with path segment %d on %s and %s", i, points[i], segments[i][0], FirstName, SecondName)
+				}
+			}
+		}
+		fmt.Println("Processed" + way.Tags["name"])
+	}
+	done <- true
+	return Intersections
 }
 
 func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
@@ -177,11 +366,11 @@ func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 		pg := gj.NewPolygonFeature(points)
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
 		row, err := client.Index().
-			Index("addresses").
-			Type("address").
-			Id(strconv.FormatInt(address.ID, 10)).
-			BodyJson(marshall).
-			Do()
+		Index("addresses").
+		Type("address").
+		Id(strconv.FormatInt(address.ID, 10)).
+		BodyJson(marshall).
+		Do()
 
 		if err != nil {
 			fmt.Println(err)
@@ -199,7 +388,7 @@ func buildTags(tagList string) map[string][]string {
 	return conditions
 }
 
-func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay, []JsonNode){
+func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay, []JsonNode) {
 	var Ways []JsonWay
 	var Nodes []JsonNode
 	batch := new(leveldb.Batch)
@@ -258,6 +447,7 @@ func run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 	}
 	return Ways, Nodes
 }
+
 type JsonWay struct {
 	ID       int64               `json:"id"`
 	Type     string              `json:"type"`
@@ -365,9 +555,9 @@ func formatLevelDB(node *osmpbf.Node) (id string, val []byte) {
 	stringid := strconv.FormatInt(node.ID, 10)
 
 	var bufval bytes.Buffer
-	bufval.WriteString(strconv.FormatFloat(node.Lat, 'f', 6, 64))
+	bufval.WriteString(strconv.FormatFloat(node.Lat, 'f', 16, 64))
 	bufval.WriteString(":")
-	bufval.WriteString(strconv.FormatFloat(node.Lon, 'f', 6, 64))
+	bufval.WriteString(strconv.FormatFloat(node.Lon, 'f', 16, 64))
 	byteval := []byte(bufval.String())
 
 	return stringid, byteval
@@ -459,8 +649,8 @@ func computeCentroid(latlons []map[string]string) map[string]string {
 	var compute = getCentroid(points);
 
 	var centroid = make(map[string]string)
-	centroid["lat"] = strconv.FormatFloat(compute.Lat(), 'f', 6, 64)
-	centroid["lon"] = strconv.FormatFloat(compute.Lng(), 'f', 6, 64)
+	centroid["lat"] = strconv.FormatFloat(compute.Lat(), 'f', 16, 64)
+	centroid["lon"] = strconv.FormatFloat(compute.Lng(), 'f', 16, 64)
 
 	return centroid
 }
