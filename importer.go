@@ -100,14 +100,14 @@ func main() {
 
 	}
 
-	//	file = openFile(config.PbfPath)
-	//	defer file.Close()
-	//	decoder = getDecoder(file)
-	//
-	//	tags = buildTags("addr:street+addr:housenumber,amenity,building,shop")
-	//	AddressWays, AddressNodes := run(decoder, db, tags)
-	//	JsonWaysToES(AddressWays, client)
-	//	JsonNodesToEs(AddressNodes, client)
+	file = openFile(config.PbfPath)
+	defer file.Close()
+	decoder = getDecoder(file)
+
+	tags = buildTags("addr:street+addr:housenumber,amenity,building,shop")
+	AddressWays, AddressNodes := run(decoder, db, tags)
+	JsonWaysToES(AddressWays, client)
+	JsonNodesToEs(AddressNodes, client)
 
 	file = openFile(config.PbfPath)
 	defer file.Close()
@@ -115,13 +115,10 @@ func main() {
 
 	tags = buildTags("highway")
 	Roads, _ = run(decoder, db, tags)
-//	var Intersections []JsonNode
+	RoadsToPg()
 	fmt.Println("Searching all roads intersecitons")
 	Intersections := GetRoadIntersectionsFromPG()
 	JsonNodesToEs(Intersections, client)
-
-//	RoadsToPg()
-//	JsonNodesToEs(Intersections, client)
 }
 
 func RoadsToPg(){
@@ -150,7 +147,7 @@ func RoadsToPg(){
 	}
 	_, err = pg_db.Query(`create table road_intersection (
 			id serial not null primary key,
-			icount bigint not null,
+			node_id bigint not null,
 			name varchar(200) null,
 			coords geometry
 		);`)
@@ -192,22 +189,33 @@ func RoadsToPg(){
 			log.Fatal(err)
 		}
 	}
+//	searchQuery := `
+//		INSERT INTO road_intersection (coords, icount, name)
+//		(SELECT
+//			ST_Intersection(a.coords, b.coords),
+//			Count(Distinct a.node_id),
+//			concat(a.name, ' ', b.name) as InterName
+//
+//		FROM
+//			road as a,
+//			road as b
+//		WHERE
+//			ST_Touches(a.coords, b.coords)
+//			AND a.node_id != b.node_id
+//		GROUP BY
+//			ST_Intersection(a.coords, b.coords),
+//			InterName
+//		);
+//	`
 	searchQuery := `
-		INSERT INTO road_intersection (coords, icount, name)
-		(SELECT
-			ST_Intersection(a.coords, b.coords),
-			Count(Distinct a.node_id),
-			concat(a.name, ' ', b.name) as InterName
-
-		FROM
-			road as a,
-			road as b
-		WHERE
-			ST_Touches(a.coords, b.coords)
-			AND a.node_id != b.node_id
-		GROUP BY
-			ST_Intersection(a.coords, b.coords),
-			InterName
+		INSERT INTO road_intersection( coords, name, node_id)
+			(SELECT DISTINCT (ST_DUMP(ST_INTERSECTION(a.coords, b.coords))).geom AS ix,
+			concat(a.name, ' ', b.name) as InterName,
+			a.node_id + b.node_id
+			FROM road a
+			INNER JOIN road b
+			ON ST_INTERSECTS(a.coords,b.coords)
+			WHERE geometrytype(st_intersection(a.coords,b.coords)) = 'POINT'
 		);
 	`
 	fmt.Println("Started searching intersections ...")
@@ -232,7 +240,7 @@ func GetRoadIntersectionsFromPG() []JsonNode {
 		log.Fatal(err)
 	}
 	defer pg_db.Close()
-	rows, err := pg_db.Query("SELECT id, name, st_x((st_dump(coords)).geom) as lng, st_y((st_dump(coords)).geom) as lat from road_intersection")
+	rows, err := pg_db.Query("SELECT node_id, name, st_x((st_dump(coords)).geom) as lng, st_y((st_dump(coords)).geom) as lat from road_intersection")
 
 	if err != nil {
 		log.Fatal(err)
@@ -249,6 +257,9 @@ func GetRoadIntersectionsFromPG() []JsonNode {
 }
 
 func GetRoadIntersections(done chan bool) []JsonNode {
+	// TODO: optimize it
+	// Use https://github.com/pierrre/geohash
+	// Or https://en.wikipedia.org/wiki/K-d_tree
 	var Intersections []JsonNode
 	for _, way := range Roads {
 		path := ggeo.NewPath()
@@ -295,6 +306,7 @@ func GetRoadIntersections(done chan bool) []JsonNode {
 }
 
 func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
+	fmt.Println("Populating elastic search index")
 	for _, address := range Addresses {
 		var cityName, villageName, suburbName string
 		for _, city := range Cities {
@@ -318,7 +330,7 @@ func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 		}
 		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
-		row, err := client.Index().
+		_, err := client.Index().
 		Index("addresses").
 		Type("address").
 		Id(strconv.FormatInt(address.ID, 10)).
@@ -329,11 +341,11 @@ func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 			fmt.Println(err)
 			break
 		}
-		fmt.Println(row.Created, row.Id)
 	}
 
 }
 func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
+	fmt.Println("Populating elastic search index")
 	for _, address := range Addresses {
 		var cityName, villageName, suburbName string
 		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
@@ -365,7 +377,7 @@ func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 
 		pg := gj.NewPolygonFeature(points)
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
-		row, err := client.Index().
+		_, err := client.Index().
 		Index("addresses").
 		Type("address").
 		Id(strconv.FormatInt(address.ID, 10)).
@@ -376,7 +388,6 @@ func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 			fmt.Println(err)
 			break
 		}
-		fmt.Println(row.Created, row.Id)
 	}
 }
 
