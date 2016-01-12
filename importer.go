@@ -58,7 +58,7 @@ func getDecoder(file *os.File) *osmpbf.Decoder {
 	return decoder
 }
 
-var Cities, Villages, Districts, Roads []JsonWay
+var CitiesAndTowns, Roads []JsonWay
 
 func main() {
 	config := getSettings()
@@ -82,30 +82,20 @@ func main() {
 		fmt.Println(err)
 	}
 
+	fmt.Println("Searching cities, villages, towns and districts")
+	tags := buildTags("place~city,place~village,place~suburb,place~town")
+	CitiesAndTowns, _ = run(decoder, db, tags)
 
-	tags := buildTags("place~city,place~village,place~suburb")
-	Ways, _ := run(decoder, db, tags)
-
-	for _, node := range Ways {
-		switch node.Tags["place"] {
-		case "city":
-			Cities = append(Cities, node)
-		case "suburb":
-			Districts = append(Districts, node)
-		case "village":
-			Villages = append(Villages, node)
-		default:
-			fmt.Println("Unknown Node")
-		}
-
-	}
+	fmt.Println("Cities, villages, towns and districts found")
 
 	file = openFile(config.PbfPath)
 	defer file.Close()
 	decoder = getDecoder(file)
 
-	tags = buildTags("addr:street+addr:housenumber,amenity,building,shop")
+	fmt.Println("Searching addresses")
+	tags = buildTags("addr:street+addr:housenumber,amenity,shop")
 	AddressWays, AddressNodes := run(decoder, db, tags)
+	fmt.Println("Addresses found")
 	JsonWaysToES(AddressWays, client)
 	JsonNodesToEs(AddressNodes, client)
 
@@ -121,7 +111,7 @@ func main() {
 	JsonNodesToEs(Intersections, client)
 }
 
-func RoadsToPg(){
+func RoadsToPg() {
 	pg_db, err := sql.Open("postgres", "host=localhost user=geo password=geo dbname=geo sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
@@ -162,10 +152,10 @@ func RoadsToPg(){
 	fmt.Println("Created tables")
 	fmt.Println("Populating...")
 	const insQuery = `INSERT INTO road (node_id, name, coords) values($1, $2, ST_GeomFromText($3));`
-	for _, road := range Roads{
+	for _, road := range Roads {
 		linestring := "LINESTRING("
 
-		for _, point := range road.Nodes{
+		for _, point := range road.Nodes {
 			linestring += fmt.Sprintf("%s %s,", strconv.FormatFloat(point.Lng(), 'f', 16, 64), strconv.FormatFloat(point.Lat(), 'f', 16, 64))
 		}
 		linestring = linestring[:len(linestring) - 1]
@@ -184,29 +174,11 @@ func RoadsToPg(){
 			name = road.Tags["addr:name"]
 		}
 
-		_, err = insert_query.Exec(road.ID, name, linestring)
+		_, err = insert_query.Exec(road.ID, cleanAddress(name), linestring)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-//	searchQuery := `
-//		INSERT INTO road_intersection (coords, icount, name)
-//		(SELECT
-//			ST_Intersection(a.coords, b.coords),
-//			Count(Distinct a.node_id),
-//			concat(a.name, ' ', b.name) as InterName
-//
-//		FROM
-//			road as a,
-//			road as b
-//		WHERE
-//			ST_Touches(a.coords, b.coords)
-//			AND a.node_id != b.node_id
-//		GROUP BY
-//			ST_Intersection(a.coords, b.coords),
-//			InterName
-//		);
-//	`
 	searchQuery := `
 		INSERT INTO road_intersection( coords, name, node_id)
 			(SELECT DISTINCT (ST_DUMP(ST_INTERSECTION(a.coords, b.coords))).geom AS ix,
@@ -226,13 +198,15 @@ func RoadsToPg(){
 	}
 
 }
-type PGNode struct{
-	ID int64
+
+type PGNode struct {
+	ID   int64
 	Name string
-	Lng float64
-	Lat float64
+	Lng  float64
+	Lat  float64
 
 }
+
 func GetRoadIntersectionsFromPG() []JsonNode {
 	var Nodes []JsonNode
 	pg_db, err := sql.Open("postgres", "host=localhost user=geo password=geo dbname=geo sslmode=disable")
@@ -304,32 +278,64 @@ func GetRoadIntersections(done chan bool) []JsonNode {
 	done <- true
 	return Intersections
 }
+func normalizeAddress(address string) string {
+	if strings.Contains(address, "улица") {
+		return fmt.Sprintf("улица %s", strings.Replace(address, "улица", "", -1))
 
+	}
+	if strings.Contains(address, "проспект") {
+		return fmt.Sprintf("проспект %s", strings.Replace(address, "проспект", "", -1))
+
+	}
+	if strings.Contains(address, "переулок") {
+		return fmt.Sprintf("переулок %s", strings.Replace(address, "переулок", "", -1))
+
+	}
+	return address
+}
+func cleanAddress(address string) string {
+	if strings.Contains(address, "улица") {
+		return strings.Replace(address, "улица", "", -1)
+
+	}
+	if strings.Contains(address, "проспект") {
+		return strings.Replace(address, "проспект", "", -1)
+
+	}
+	if strings.Contains(address, "переулок") {
+		return strings.Replace(address, "переулок", "", -1)
+
+	}
+	if strings.Contains(address, "микрорайон") {
+		return strings.Replace(address, "микрорайон", "", -1)
+	}
+
+	return address
+}
 func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 	fmt.Println("Populating elastic search index")
+	// TODO: Fuck
 	for _, address := range Addresses {
-		var cityName, villageName, suburbName string
-		for _, city := range Cities {
+		cityName, villageName, suburbName := "", "", ""
+		for _, city := range CitiesAndTowns {
 			polygon := geo.NewPolygon(city.Nodes)
 
 			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				cityName = city.Tags["name"]
+				switch city.Tags["place"] {
+				case "city":
+					cityName = city.Tags["name"]
+				case "village":
+					villageName = city.Tags["name"]
+				case "suburb":
+					suburbName = city.Tags["name"]
+				}
 			}
 		}
-		for _, village := range Villages {
-			polygon := geo.NewPolygon(village.Nodes)
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				villageName = village.Tags["name"]
-			}
-		}
-		for _, suburb := range Districts {
-			polygon := geo.NewPolygon(suburb.Nodes)
-			if polygon.Contains(geo.NewPoint(address.Lat, address.Lon)) {
-				suburbName = suburb.Tags["name"]
-			}
-		}
-		p := gj.NewPointGeometry([]float64{address.Lat, address.Lon})
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, nil}
+
+		centroid := make(map[string]float64)
+		centroid["lat"] = address.Lat
+		centroid["lon"] = address.Lon
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], cleanAddress(address.Tags["name"]), centroid, nil}
 		_, err := client.Index().
 		Index("addresses").
 		Type("address").
@@ -347,36 +353,33 @@ func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 	fmt.Println("Populating elastic search index")
 	for _, address := range Addresses {
-		var cityName, villageName, suburbName string
+		cityName, villageName, suburbName := "", "", ""
 		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
 		var lng, _ = strconv.ParseFloat(address.Centroid["lon"], 64)
-		for _, city := range Cities {
+		for _, city := range CitiesAndTowns {
 			polygon := geo.NewPolygon(city.Nodes)
 
 			if polygon.Contains(geo.NewPoint(lat, lng)) {
-				cityName = city.Tags["name"]
+				switch city.Tags["place"] {
+				case "city":
+					cityName = city.Tags["name"]
+				case "village":
+					villageName = city.Tags["name"]
+				case "suburb":
+					suburbName = city.Tags["name"]
+				}
 			}
 		}
-		for _, village := range Villages {
-			polygon := geo.NewPolygon(village.Nodes)
-			if polygon.Contains(geo.NewPoint(lat, lng)) {
-				villageName = village.Tags["name"]
-			}
-		}
-		for _, suburb := range Districts {
-			polygon := geo.NewPolygon(suburb.Nodes)
-			if polygon.Contains(geo.NewPoint(lat, lng)) {
-				suburbName = suburb.Tags["name"]
-			}
-		}
-		p := gj.NewPointGeometry([]float64{lat, lng})
 		var points [][][]float64
 		for _, point := range address.Nodes {
 			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
 		}
 
 		pg := gj.NewPolygonFeature(points)
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, address.Tags["addr:street"], address.Tags["addr:housenumber"], address.Tags["name"], p, pg}
+		centroid := make(map[string]float64)
+		centroid["lat"] = lat
+		centroid["lon"] = lng
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], cleanAddress(address.Tags["name"]), centroid, pg}
 		_, err := client.Index().
 		Index("addresses").
 		Type("address").
@@ -496,7 +499,7 @@ type JsonEsIndex struct {
 	Street      string `json:"street"`
 	HouseNumber string `json:"housenumber"`
 	Name        string `json:"name"`
-	Centroid    interface{} `json:"centroid"`
+	Centroid    map[string]float64 `json:"centroid"`
 	Geom        interface{} `json:"geom"`
 }
 
