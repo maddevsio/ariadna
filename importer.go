@@ -314,7 +314,7 @@ func cleanAddress(address string) string {
 }
 func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 	fmt.Println("Populating elastic search index")
-	// TODO: Fuck
+	bulkClient := client.Bulk()
 	for _, address := range Addresses {
 		cityName, villageName, suburbName := "", "", ""
 		for _, city := range CitiesAndTowns {
@@ -336,22 +336,19 @@ func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 		centroid["lat"] = address.Lat
 		centroid["lon"] = address.Lon
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], cleanAddress(address.Tags["name"]), centroid, nil}
-		_, err := client.Index().
-		Index("addresses").
-		Type("address").
-		Id(strconv.FormatInt(address.ID, 10)).
-		BodyJson(marshall).
-		Do()
+		index := elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
+		bulkClient = bulkClient.Add(index)
 
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
+	}
+	_, err := bulkClient.Do()
+	if err != nil {
+		fmt.Println(err)
 	}
 
 }
 func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 	fmt.Println("Populating elastic search index")
+	bulkClient := client.Bulk()
 	for _, address := range Addresses {
 		cityName, villageName, suburbName := "", "", ""
 		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
@@ -380,17 +377,14 @@ func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 		centroid["lat"] = lat
 		centroid["lon"] = lng
 		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], cleanAddress(address.Tags["name"]), centroid, pg}
-		_, err := client.Index().
-		Index("addresses").
-		Type("address").
-		Id(strconv.FormatInt(address.ID, 10)).
-		BodyJson(marshall).
-		Do()
+		index := elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
 
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
+		bulkClient = bulkClient.Add(index)
+
+	}
+	_, err := bulkClient.Do()
+	if err != nil {
+		fmt.Println(err)
 	}
 }
 
