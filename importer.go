@@ -306,10 +306,6 @@ func cleanAddress(address string) string {
 		return strings.Replace(address, "переулок", "", -1)
 
 	}
-	if strings.Contains(address, "микрорайон") {
-		return strings.Replace(address, "микрорайон", "", -1)
-	}
-
 	return address
 }
 func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
