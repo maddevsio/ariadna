@@ -9,7 +9,6 @@
 package main
 
 import (
-	"log"
 	"fmt"
 	"os"
 	"bytes"
@@ -27,6 +26,10 @@ import (
 	ggeo "github.com/paulmach/go.geo"
 	_ "github.com/lib/pq"
 	"database/sql"
+	"github.com/gen1us2k/go-translit"
+	"regexp"
+	log "github.com/Sirupsen/logrus"
+	"bufio"
 )
 
 
@@ -34,7 +37,83 @@ type Settings struct {
 	PbfPath   string
 	BatchSize int
 }
+var synonims = map[string]string{
+	"LiveBar": "Лайвбар",
+	"Lounge": "Лаундж",
+	"Hyatt": "Хаят",
+	"Issyk": "Ыссык",
+	"Kul": "Куль",
+	"Coffee": "Кофе",
+	"Alexsandra": "Александра",
+	"Beeline" : "Билайн",
+	"Mega-Line": "Мега-Лайн",
+	"Center": "Центр",
+	"Mary": "Мери",
+	"Pizza": "Пицца",
+	"Park": "Парк",
+	"House": "Хаус",
+	"Trade": "Трейд",
+	"Logic": "Лоджик",
+	"Rich": "Рич",
+	"School": "Скул",
+	"The": "Зе",
+	"Oriflame":"Орифлейм",
+	"Arzu":"Арзу",
+	"GrandStone":"Грандстоун",
+	"The Olive":"Олив",
+	"Trade college":"Трейд колледж",
+	"Manchester":"Манчестер",
+	"Pertroleum":"Петролеум",
+	"Green City":"Грин Сити",
+	"My house":"Май Хаус",
+	"Way": "Вей",
+	"Boutique": "Бутик",
+	"Johnny": "Джонни",
+	"Green": "Грин",
+	"New": "Нью",
+	"Litech": "Литек",
+	"Burger": "Бургер",
+	"Brand": "Бренд",
+	"Movie": "Муви",
+	"Rose": "Роуз",
+	"Chicago": "Чикаго",
+	"Khalyk": "Халык",
+	"cup": "Кап",
+	"cake": "Кейк",
+	"EcoHouse": "Эко хаус",
+	"Club": "Клаб",
+	"Pub": "Паб",
+	"LLumarc": "Люмарк",
+	"Havai": "Гаваи",
+	"Lady's": "Леди",
+	"Mexx": "Мехх",
+	"Cinema": "Синема",
+	"CityNet": "Ситинет",
+	"The Host": "Зе Хост",
+	"Tunnel": "Туннель",
+	"München":"Мюнхен",
+	"Light": "Лайт",
+	"Style":"Стайл",
+	"Apple": "Эпл",
+	"Hotel": "Отель",
+	"LoveTime": "ЛавТайм",
+	"shop": "шоп",
+	"office": "офис",
+	"Interhouse": "Интерхаус",
+	"Dostuck": "Достук",
+	"Advantour": "Адвантур",
+	"Orthodox": "Ортодокс",
+	"Church": "Церковь",
+	"Store": "Стор",
+	"Showroom": "Шоурум",
+}
+var PlaceSynonyms = map[string][]string{
+	"American University of Central Asia": []string{"АУЦА", "Американский университет в центральной азии", "AUCA"},
+}
 
+
+var latinre *regexp.Regexp
+var Words []map[string]string
 func getSettings() Settings {
 
 	// command line flags
@@ -61,8 +140,9 @@ func getDecoder(file *os.File) *osmpbf.Decoder {
 var CitiesAndTowns, Roads []JsonWay
 
 func main() {
+	log.SetLevel(log.ErrorLevel)
 	config := getSettings()
-
+	latinre, _ = regexp.Compile("^[a-zA-Z]")
 	db := openLevelDB("db")
 	defer db.Close()
 
@@ -79,36 +159,50 @@ func main() {
 	_, err = client.CreateIndex("addresses").Do()
 	if err != nil {
 		// Handle error
-		fmt.Println(err)
+		log.Error(err)
 	}
 
-	fmt.Println("Searching cities, villages, towns and districts")
+	log.Info("Searching cities, villages, towns and districts")
 	tags := buildTags("place~city,place~village,place~suburb,place~town")
 	CitiesAndTowns, _ = run(decoder, db, tags)
 
-	fmt.Println("Cities, villages, towns and districts found")
+	log.Info("Cities, villages, towns and districts found")
 
 	file = openFile(config.PbfPath)
 	defer file.Close()
 	decoder = getDecoder(file)
 
-	fmt.Println("Searching addresses")
+	log.Info("Searching addresses")
 	tags = buildTags("addr:street+addr:housenumber,amenity,shop")
 	AddressWays, AddressNodes := run(decoder, db, tags)
 	fmt.Println("Addresses found")
 	JsonWaysToES(AddressWays, client)
 	JsonNodesToEs(AddressNodes, client)
-
-	file = openFile(config.PbfPath)
+	file, err = os.Create("english_names")
+	if err != nil {
+		log.Error(err)
+	}
 	defer file.Close()
-	decoder = getDecoder(file)
 
-	tags = buildTags("highway")
-	Roads, _ = run(decoder, db, tags)
-	RoadsToPg()
-	fmt.Println("Searching all roads intersecitons")
-	Intersections := GetRoadIntersectionsFromPG()
-	JsonNodesToEs(Intersections, client)
+	w := bufio.NewWriter(file)
+	for _, line := range Words {
+		str := fmt.Sprintf("%s --> %s\n", line["original"], line["trans"])
+		fmt.Fprintln(w, str)
+	}
+	err = w.Flush()
+	if err != nil {
+		log.Error(err)
+	}
+	//	file = openFile(config.PbfPath)
+	//	defer file.Close()
+	//	decoder = getDecoder(file)
+
+	//	tags = buildTags("highway")
+	//	Roads, _ = run(decoder, db, tags)
+	//	RoadsToPg()
+	//	fmt.Println("Searching all roads intersecitons")
+	//	Intersections := GetRoadIntersectionsFromPG()
+	//	JsonNodesToEs(Intersections, client)
 }
 
 func RoadsToPg() {
@@ -331,9 +425,33 @@ func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 		centroid := make(map[string]float64)
 		centroid["lat"] = address.Lat
 		centroid["lon"] = address.Lon
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], cleanAddress(address.Tags["name"]), centroid, nil}
+		name := cleanAddress(address.Tags["name"])
+		translated := ""
+		if latinre.Match([]byte(name)) {
+			word := make(map[string]string)
+			word["original"] = name
+
+			trans := strings.Split(name, " ")
+			for _, k := range trans {
+				s := synonims[k]
+				if s == "" {
+					s = translit.Translit(k)
+				}
+				translated += fmt.Sprintf("%s ", s)
+			}
+
+			word["trans"] = translated
+			Words = append(Words, word)
+		}
+		//		name = translit.Translit(name)
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], name, centroid, nil}
 		index := elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
 		bulkClient = bulkClient.Add(index)
+		if translated != "" {
+			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], translated, centroid, nil}
+			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID * 2, 10) ).Doc(marshall)
+			bulkClient = bulkClient.Add(index)
+		}
 
 	}
 	_, err := bulkClient.Do()
@@ -342,6 +460,13 @@ func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 	}
 
 }
+
+type Translate struct {
+	Original  string
+	Translate string
+}
+var Translations []Translate
+
 func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 	fmt.Println("Populating elastic search index")
 	bulkClient := client.Bulk()
@@ -372,8 +497,32 @@ func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 		centroid := make(map[string]float64)
 		centroid["lat"] = lat
 		centroid["lon"] = lng
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], cleanAddress(address.Tags["name"]), centroid, pg}
+		name := cleanAddress(address.Tags["name"])
+		translated := ""
+
+		if latinre.Match([]byte(name)) {
+			word := make(map[string]string)
+			word["original"] = name
+
+			trans := strings.Split(name, " ")
+			for _, k := range trans {
+				s := synonims[k]
+				if s == "" {
+					s = translit.Translit(k)
+				}
+				translated += fmt.Sprintf("%s ", s)
+			}
+
+			word["trans"] = translated
+			Words = append(Words, word)
+		}
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], name, centroid, pg}
 		index := elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
+		if translated != "" {
+			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], translated, centroid, pg}
+			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID * 2, 10)).Doc(marshall)
+			bulkClient = bulkClient.Add(index)
+		}
 
 		bulkClient = bulkClient.Add(index)
 
