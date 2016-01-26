@@ -443,12 +443,13 @@ func JsonNodesToEs(Addresses []JsonNode, client *elastic.Client) {
 			word["trans"] = translated
 			Words = append(Words, word)
 		}
+		housenumber := translit.Translit(address.Tags["addr:housenumber"])
 		//		name = translit.Translit(name)
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], name, centroid, nil}
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, centroid, nil}
 		index := elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
 		bulkClient = bulkClient.Add(index)
 		if translated != "" {
-			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], translated, centroid, nil}
+			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, centroid, nil}
 			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID * 2, 10) ).Doc(marshall)
 			bulkClient = bulkClient.Add(index)
 		}
@@ -516,15 +517,16 @@ func JsonWaysToES(Addresses []JsonWay, client *elastic.Client) {
 			word["trans"] = translated
 			Words = append(Words, word)
 		}
-		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], name, centroid, pg}
+		housenumber := translit.Translit(address.Tags["addr:housenumber"])
+		marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, centroid, pg}
 		index := elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
+		bulkClient = bulkClient.Add(index)
 		if translated != "" {
-			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), address.Tags["addr:housenumber"], translated, centroid, pg}
+			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, centroid, pg}
 			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID * 2, 10)).Doc(marshall)
 			bulkClient = bulkClient.Add(index)
 		}
 
-		bulkClient = bulkClient.Add(index)
 
 	}
 	_, err := bulkClient.Do()
