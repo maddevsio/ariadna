@@ -61,8 +61,7 @@ func main() {
 	if err != nil {
 		// Handle error
 	}
-
-	_, err = client.CreateIndex("addresses").Do()
+	_, err = client.CreateIndex("addresses_new").BodyString(importer.ESSettings).Do()
 	if err != nil {
 		// Handle error
 		importer.Logger.Error(err.Error())
