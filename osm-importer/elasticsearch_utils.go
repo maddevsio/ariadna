@@ -69,7 +69,7 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 		bulkClient = bulkClient.Add(index)
 		if translated != "" {
 			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, centroid, pg}
-			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID * 2, 10)).Doc(marshall)
+			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID*2, 10)).Doc(marshall)
 			bulkClient = bulkClient.Add(index)
 		}
 
@@ -137,7 +137,7 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 		bulkClient = bulkClient.Add(index)
 		if translated != "" {
 			marshall := JsonEsIndex{"KG", cityName, villageName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, centroid, nil}
-			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID * 2, 10)).Doc(marshall)
+			index = elastic.NewBulkIndexRequest().Index("addresses").Type("address").Id(strconv.FormatInt(address.ID*2, 10)).Doc(marshall)
 			bulkClient = bulkClient.Add(index)
 		}
 
