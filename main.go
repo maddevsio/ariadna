@@ -16,10 +16,10 @@ func getSettings() importer.Settings {
 
 	// command line flags
 	batchSize := flag.Int("batch", 50000, "batch leveldb writes in batches of this size")
+	configPath := flag.String("config", "config.json", "config file path")
 
 	flag.Parse()
 	args := flag.Args()
-	configPath := flag.String("config", "config.json", "config file path")
 
 	if len(args) < 1 {
 		importer.Logger.Fatal("invalid args, you must specify a PBF file")
