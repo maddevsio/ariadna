@@ -7,6 +7,7 @@ import (
 	"gopkg.in/olivere/elastic.v3"
 	"os"
 	"runtime"
+	"fmt"
 )
 
 var CitiesAndTowns, Roads []importer.JsonWay
@@ -18,12 +19,13 @@ func getSettings() importer.Settings {
 
 	flag.Parse()
 	args := flag.Args()
+	configPath := flag.String("config", "config.json", "config file path")
 
 	if len(args) < 1 {
 		importer.Logger.Fatal("invalid args, you must specify a PBF file")
 	}
 
-	return importer.Settings{args[0], *batchSize}
+	return importer.Settings{args[0], *batchSize, *configPath}
 }
 
 func getDecoder(file *os.File) *osmpbf.Decoder {
@@ -37,11 +39,13 @@ func getDecoder(file *os.File) *osmpbf.Decoder {
 
 func main() {
 
-	config := getSettings()
+	settings := getSettings()
+	importer.ReadConfig(settings.ConfigPath)
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
-	file := importer.OpenFile(config.PbfPath)
+	file := importer.OpenFile(settings.PbfPath)
+	fmt.Println(importer.C.IndexName)
 	defer file.Close()
 	decoder := getDecoder(file)
 
@@ -49,7 +53,7 @@ func main() {
 	if err != nil {
 		// Handle error
 	}
-	_, err = client.CreateIndex("addresses").BodyString(importer.ESSettings).Do()
+	_, err = client.CreateIndex(importer.C.IndexName).BodyString(importer.ESSettings).Do()
 	if err != nil {
 		// Handle error
 		importer.Logger.Error(err.Error())
@@ -61,7 +65,7 @@ func main() {
 
 	importer.Logger.Info("Cities, villages, towns and districts found")
 
-	file = importer.OpenFile(config.PbfPath)
+	file = importer.OpenFile(settings.PbfPath)
 	defer file.Close()
 	decoder = getDecoder(file)
 
@@ -71,7 +75,7 @@ func main() {
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
 	importer.JsonNodesToEs(AddressNodes, CitiesAndTowns, client)
-	file = importer.OpenFile(config.PbfPath)
+	file = importer.OpenFile(settings.PbfPath)
 	defer file.Close()
 	decoder = getDecoder(file)
 

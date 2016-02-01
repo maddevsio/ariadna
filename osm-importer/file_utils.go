@@ -2,6 +2,8 @@ package importer
 
 import (
 	"os"
+	"io/ioutil"
+	"encoding/json"
 )
 
 func OpenFile(filename string) *os.File {
@@ -15,4 +17,15 @@ func OpenFile(filename string) *os.File {
 		Logger.Fatal(err.Error())
 	}
 	return file
+}
+
+func ReadConfig(filename string) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		Logger.Fatal(err.Error())
+	}
+	err = json.Unmarshal(data, &C)
+	if err != nil {
+		Logger.Fatal(err.Error())
+	}
 }
