@@ -1,11 +1,3 @@
-// Useful tags for Bishkek
-// addr:street+addr:housenumber - Get all known addresses
-// place~city - Get all cities
-// place~suburb - Get districts
-// place~village - Get villages
-// building,shop - get all buildings and shops
-// highway - Get all roads
-
 package main
 
 import (
@@ -16,10 +8,6 @@ import (
 	"os"
 	"runtime"
 )
-
-var PlaceSynonyms = map[string][]string{
-	"American University of Central Asia": []string{"АУЦА", "Американский университет в центральной азии", "AUCA"},
-}
 
 var CitiesAndTowns, Roads []importer.JsonWay
 
@@ -83,16 +71,14 @@ func main() {
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
 	importer.JsonNodesToEs(AddressNodes, CitiesAndTowns, client)
-	//	file = openFile(config.PbfPath)
-	//	defer file.Close()
-	//	decoder = getDecoder(file)
+	file = importer.OpenFile(config.PbfPath)
+	defer file.Close()
+	decoder = getDecoder(file)
 
-	//	tags = buildTags("highway")
-	//	Roads, _ = run(decoder, db, tags)
-	//	RoadsToPg()
-	//	fmt.Println("Searching all roads intersecitons")
-	//	Intersections := GetRoadIntersectionsFromPG()
-	//	JsonNodesToEs(Intersections, client)
+	tags = importer.BuildTags("highway")
+	Roads, _ = importer.Run(decoder, db, tags)
+	importer.RoadsToPg(Roads)
+	importer.Logger.Info("Searching all roads intersecitons")
+	Intersections := importer.GetRoadIntersectionsFromPG()
+	importer.JsonNodesToEs(Intersections,CitiesAndTowns, client)
 }
-
-var Translations []importer.Translate
