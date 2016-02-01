@@ -1,5 +1,0 @@
-{
-  "index_name": "addresses_new",
-  "index_type": "address",
-  "pg_conn_string": "host=localhost user=geo password=geo dbname=geo sslmode=disable"
-}
