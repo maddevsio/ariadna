@@ -51,8 +51,8 @@ type PGNode struct {
 }
 
 type Settings struct {
-	PbfPath   string
-	BatchSize int
+	PbfPath    string
+	BatchSize  int
 	ConfigPath string
 }
 
@@ -62,9 +62,9 @@ type Translate struct {
 }
 
 type Config struct {
-	IndexName string		`json:"index_name"`
-	PGConnString string		`json:"pg_conn_string"`
-	IndexType string `json:"index_type"`
+	IndexName    string `json:"index_name"`
+	PGConnString string `json:"pg_conn_string"`
+	IndexType    string `json:"index_type"`
 }
 
 var C Config

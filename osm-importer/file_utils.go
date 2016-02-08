@@ -1,9 +1,9 @@
 package importer
 
 import (
-	"os"
-	"io/ioutil"
 	"encoding/json"
+	"io/ioutil"
+	"os"
 )
 
 func OpenFile(filename string) *os.File {

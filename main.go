@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/gen1us2k/osm-geogoder/osm-importer"
 	"github.com/qedus/osmpbf"
 	"gopkg.in/olivere/elastic.v3"
 	"os"
 	"runtime"
-	"fmt"
 )
 
 var CitiesAndTowns, Roads []importer.JsonWay
@@ -84,5 +84,5 @@ func main() {
 	importer.RoadsToPg(Roads)
 	importer.Logger.Info("Searching all roads intersecitons")
 	Intersections := importer.GetRoadIntersectionsFromPG()
-	importer.JsonNodesToEs(Intersections,CitiesAndTowns, client)
+	importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
 }
