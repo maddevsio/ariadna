@@ -25,6 +25,7 @@ func RoadsToPg(Roads []JsonWay) {
 			id serial not null primary key,
 			node_id bigint not null,
 			name varchar(255) null,
+			old_name varchar(255) null,
 			coords geometry
 		);`)
 	if err != nil {
@@ -34,6 +35,7 @@ func RoadsToPg(Roads []JsonWay) {
 			id serial not null primary key,
 			node_id bigint not null,
 			name varchar(200) null,
+			old_name varchar(255) null,
 			coords geometry
 		);`)
 
@@ -49,7 +51,7 @@ func RoadsToPg(Roads []JsonWay) {
 		Logger.Info("Started populating tables with many roads")
 	}
 
-	const insQuery = `INSERT INTO road (node_id, name, coords) values($1, $2, ST_GeomFromText($3));`
+	const insQuery = `INSERT INTO road (node_id, name, old_name, coords) values($1, $2, $3, ST_GeomFromText($4));`
 	for _, road := range Roads {
 		linestring := "LINESTRING("
 
@@ -72,14 +74,15 @@ func RoadsToPg(Roads []JsonWay) {
 			name = road.Tags["addr:name"]
 		}
 
-		_, err = insert_query.Exec(road.ID, cleanAddress(name), linestring)
+		_, err = insert_query.Exec(road.ID, cleanAddress(name), cleanAddress(road.Tags["old_name"]), linestring)
 		if err != nil {
 			Logger.Fatal(err.Error())
 		}
 	}
 	searchQuery := `
-		INSERT INTO road_intersection( coords, name, node_id)
+		INSERT INTO road_intersection( coords, name, old_name, node_id)
 			(SELECT DISTINCT (ST_DUMP(ST_INTERSECTION(a.coords, b.coords))).geom AS ix,
+			concat(a.old_name, ' ', b.old_name) as InterName,
 			concat(a.name, ' ', b.name) as InterName,
 			a.node_id + b.node_id
 			FROM road a
@@ -106,16 +109,17 @@ func GetRoadIntersectionsFromPG() []JsonNode {
 		Logger.Fatal(err.Error())
 	}
 	defer pg_db.Close()
-	rows, err := pg_db.Query("SELECT node_id, name, st_x((st_dump(coords)).geom) as lng, st_y((st_dump(coords)).geom) as lat from road_intersection")
+	rows, err := pg_db.Query("SELECT node_id, name, old_name, st_x((st_dump(coords)).geom) as lng, st_y((st_dump(coords)).geom) as lat from road_intersection")
 
 	if err != nil {
 		Logger.Fatal(err.Error())
 	}
 	for rows.Next() {
 		var node PGNode
-		rows.Scan(&node.ID, &node.Name, &node.Lng, &node.Lat)
+		rows.Scan(&node.ID, &node.Name, &node.OldName, &node.Lng, &node.Lat)
 		tags := make(map[string]string)
 		tags["name"] = node.Name
+		tags["old_name"] = node.OldName
 		jNode := JsonNode{node.ID, "node", node.Lat, node.Lng, tags}
 		Nodes = append(Nodes, jNode)
 	}

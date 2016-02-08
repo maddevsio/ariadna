@@ -39,15 +39,17 @@ type JsonEsIndex struct {
 	Street      string             `json:"street"`
 	HouseNumber string             `json:"housenumber"`
 	Name        string             `json:"name"`
+	OldName     string             `json:"old_name"`
 	Centroid    map[string]float64 `json:"centroid"`
 	Geom        interface{}        `json:"geom"`
 }
 
 type PGNode struct {
-	ID   int64
-	Name string
-	Lng  float64
-	Lat  float64
+	ID      int64
+	Name    string
+	OldName string
+	Lng     float64
+	Lat     float64
 }
 
 type Settings struct {

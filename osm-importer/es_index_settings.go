@@ -123,6 +123,10 @@ var ESSettings string = `{
                     "name": {
                         "type": "string",
                         "analyzer": "simple"
+                    },
+                    "old_name": {
+                        "type": "string",
+                        "analyzer": "simple"
                     }
                 }
             }
