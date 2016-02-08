@@ -35,6 +35,8 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 					suburbName = city.Tags["name"]
 				case "town":
 					townName = city.Tags["name"]
+				case "neighbourhood":
+					suburbName = city.Tags["name"]
 				}
 			}
 		}
@@ -111,6 +113,8 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 					suburbName = city.Tags["name"]
 				case "town":
 					townName = city.Tags["name"]
+				case "neighbourhood":
+					suburbName = city.Tags["name"]
 				}
 			}
 		}

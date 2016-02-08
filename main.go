@@ -60,7 +60,7 @@ func main() {
 	}
 
 	importer.Logger.Info("Searching cities, villages, towns and districts")
-	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town")
+	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")
 	CitiesAndTowns, _ = importer.Run(decoder, db, tags)
 
 	importer.Logger.Info("Cities, villages, towns and districts found")
