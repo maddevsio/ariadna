@@ -113,21 +113,10 @@ var ESSettings string = `{
         {"address":
             {"properties":
                 {
-                    "street": {
-                        "type": "string",
-                        "analyzer": "simple"
-                    },
                     "centroid": {
                         "type": "geo_point"
-                    },
-                    "name": {
-                        "type": "string",
-                        "analyzer": "simple"
-                    },
-                    "old_name": {
-                        "type": "string",
-                        "analyzer": "simple"
                     }
+
                 }
             }
         }

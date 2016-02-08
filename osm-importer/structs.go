@@ -34,6 +34,7 @@ type JsonRelation struct {
 type JsonEsIndex struct {
 	Country     string             `json:"country"`
 	City        string             `json:"city"`
+	Village     string             `json:"village"`
 	Town        string             `json:"town"`
 	District    string             `json:"district"`
 	Street      string             `json:"street"`

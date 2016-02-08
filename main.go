@@ -70,7 +70,7 @@ func main() {
 	decoder = getDecoder(file)
 
 	importer.Logger.Info("Searching addresses")
-	tags = importer.BuildTags("addr:street+addr:housenumber,amenity,shop")
+	tags = importer.BuildTags("addr:street+addr:housenumber,amenity,shop,addr:housenumber")
 	AddressWays, AddressNodes := importer.Run(decoder, db, tags)
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
