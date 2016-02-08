@@ -21,5 +21,5 @@ Search Data
 ===
 
 ```
-  http://localhost:92000/addresses/_search=?q=QUERY
+  http://localhost:9200/addresses/_search=?q=QUERY
 ```
