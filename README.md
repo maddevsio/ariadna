@@ -1,11 +1,18 @@
 GeoGoder
 ===
+More better geocoder for OpenStreetMap.
+It able to search:
+* Street + housenumber
+* Road intersections
+* Points of interest
+* Microdictricts
+* Search with auto replace from dictionary
+* Reverse geocoding
 
 Prerequisites
 ===
-ElasticSearch
-leveldb
-
+* ElasticSearch
+* PostgreSQL
 
 Install'n'Run
 ===
