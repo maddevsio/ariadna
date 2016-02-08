@@ -8,6 +8,7 @@ import (
 	"gopkg.in/olivere/elastic.v3"
 	"os"
 	"runtime"
+	"io/ioutil"
 )
 
 var CitiesAndTowns, Roads []importer.JsonWay
@@ -17,6 +18,7 @@ func getSettings() importer.Settings {
 	// command line flags
 	batchSize := flag.Int("batch", 50000, "batch leveldb writes in batches of this size")
 	configPath := flag.String("config", "config.json", "config file path")
+	indexPath := flag.String("index", "index.json", "ES index settings file path")
 
 	flag.Parse()
 	args := flag.Args()
@@ -25,12 +27,12 @@ func getSettings() importer.Settings {
 		importer.Logger.Fatal("invalid args, you must specify a PBF file")
 	}
 
-	return importer.Settings{args[0], *batchSize, *configPath}
+	return importer.Settings{args[0], *batchSize, *configPath, *indexPath}
 }
 
 func getDecoder(file *os.File) *osmpbf.Decoder {
 	decoder := osmpbf.NewDecoder(file)
-	err := decoder.Start(runtime.GOMAXPROCS(-1)) // use several goroutines for faster decoding
+	err := decoder.Start(runtime.GOMAXPROCS(-1))
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
 	}
@@ -41,6 +43,10 @@ func main() {
 
 	settings := getSettings()
 	importer.ReadConfig(settings.ConfigPath)
+	indexSettings, err := ioutil.ReadFile(settings.IndexPath)
+	if err != nil {
+		importer.Logger.Fatal(err.Error())
+	}
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
@@ -53,7 +59,7 @@ func main() {
 	if err != nil {
 		// Handle error
 	}
-	_, err = client.CreateIndex(importer.C.IndexName).BodyString(importer.ESSettings).Do()
+	_, err = client.CreateIndex(importer.C.IndexName).BodyString(string(indexSettings)).Do()
 	if err != nil {
 		// Handle error
 		importer.Logger.Error(err.Error())

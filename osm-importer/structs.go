@@ -57,6 +57,7 @@ type Settings struct {
 	PbfPath    string
 	BatchSize  int
 	ConfigPath string
+	IndexPath string
 }
 
 type Translate struct {

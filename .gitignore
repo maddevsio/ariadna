@@ -1,5 +1,5 @@
 *.osm.pbf
 .idea
 db
-config.json
+*.json
 importer
