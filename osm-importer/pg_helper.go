@@ -82,8 +82,8 @@ func RoadsToPg(Roads []JsonWay) {
 	searchQuery := `
 		INSERT INTO road_intersection( coords, name, old_name, node_id)
 			(SELECT DISTINCT (ST_DUMP(ST_INTERSECTION(a.coords, b.coords))).geom AS ix,
-			concat(a.old_name, ' ', b.old_name) as InterName,
 			concat(a.name, ' ', b.name) as InterName,
+			concat(a.old_name, ' ', b.old_name) as InterOldName,
 			a.node_id + b.node_id
 			FROM road a
 			INNER JOIN road b
