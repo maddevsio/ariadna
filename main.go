@@ -6,9 +6,9 @@ import (
 	"github.com/gen1us2k/osm-geogoder/osm-importer"
 	"github.com/qedus/osmpbf"
 	"gopkg.in/olivere/elastic.v3"
+	"io/ioutil"
 	"os"
 	"runtime"
-	"io/ioutil"
 )
 
 var CitiesAndTowns, Roads []importer.JsonWay

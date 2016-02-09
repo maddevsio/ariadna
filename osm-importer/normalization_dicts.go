@@ -16,6 +16,7 @@ var synonims = map[string]string{
 	"Park":          "Парк",
 	"House":         "Хаус",
 	"Trade":         "Трейд",
+	"Bishkek":       "Бишкек",
 	"Logic":         "Лоджик",
 	"Rich":          "Рич",
 	"School":        "Скул",
