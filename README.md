@@ -119,6 +119,7 @@ Open http://localhost:8080 in your browser and enjoy
 
 ### Http API
 There is http api for geocode and reverse geocode
+
 1. /api/search/:query
 2. /api/reverse/:lat/:lon
  
