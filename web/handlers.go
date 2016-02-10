@@ -1,13 +1,14 @@
 package web
+
 import (
-	"net/http"
+	"encoding/json"
+	"fmt"
+	"github.com/gen1us2k/ariadna/importer"
 	"github.com/julienschmidt/httprouter"
 	"gopkg.in/olivere/elastic.v3"
+	"net/http"
 	"reflect"
-	"github.com/gen1us2k/ariadna/importer"
-	"encoding/json"
 	"strconv"
-	"fmt"
 )
 
 type BadRequest struct {
@@ -35,12 +36,12 @@ func geoCoder(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		t := item.(importer.JsonEsIndex)
 		results = append(results, t)
 	}
-	data, _ :=json.Marshal(results)
+	data, _ := json.Marshal(results)
 	w.Write(data)
 
 }
 
-func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params){
+func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	qs := elastic.NewGeoDistanceQuery("centroid")
 	fmt.Printf("Got %s and %s\n", ps.ByName("lat"), ps.ByName("lon"))
 	lat, _ := strconv.ParseFloat(ps.ByName("lat"), 64)
@@ -60,7 +61,7 @@ func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 		t := item.(importer.JsonEsIndex)
 		results = append(results, t)
 	}
-	data, _ :=json.Marshal(results)
+	data, _ := json.Marshal(results)
 	w.Write(data)
 
 }

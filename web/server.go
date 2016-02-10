@@ -1,7 +1,8 @@
 package web
+
 import (
-	"net/http"
 	"github.com/julienschmidt/httprouter"
+	"net/http"
 )
 
 func StartServer() {
