@@ -1,15 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/gen1us2k/ariadna/importer"
+	"github.com/gen1us2k/ariadna/updater"
 	"github.com/qedus/osmpbf"
 	"gopkg.in/olivere/elastic.v3"
 	"io/ioutil"
 	"os"
 	"runtime"
-	"github.com/gen1us2k/ariadna/updater"
 )
 
 var (
@@ -84,7 +85,6 @@ func main() {
 
 }
 func actionImport(ctx *cli.Context) {
-	fmt.Println(configPath)
 	importer.ReadConfig(configPath)
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
@@ -94,17 +94,20 @@ func actionImport(ctx *cli.Context) {
 	defer db.Close()
 
 	file := importer.OpenFile(importer.C.FileName)
-	fmt.Println(importer.C.IndexName)
 	defer file.Close()
 	decoder := getDecoder(file)
 
 	client, err := elastic.NewClient()
+
 	if err != nil {
-		// Handle error
+		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
-	_, err = client.CreateIndex(importer.C.IndexName).BodyString(string(indexSettings)).Do()
+
+	indexVersion := fmt.Sprintf("%s_v%d", importer.C.IndexName, importer.C.IndexVersion+1)
+	importer.C.CurrentIndex = indexVersion
+	importer.Logger.Info("Creating index with name %s", importer.C.CurrentIndex)
+	_, err = client.CreateIndex(importer.C.CurrentIndex).BodyString(string(indexSettings)).Do()
 	if err != nil {
-		// Handle error
 		importer.Logger.Error(err.Error())
 	}
 
@@ -134,6 +137,34 @@ func actionImport(ctx *cli.Context) {
 	importer.Logger.Info("Searching all roads intersecitons")
 	Intersections := importer.GetRoadIntersectionsFromPG()
 	importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
+	importer.C.LastIndexVersion = importer.C.IndexVersion
+	importer.C.IndexVersion += 1
+	data, err := json.Marshal(importer.C)
+	if err != nil {
+		importer.Logger.Error("Failed to encode to json: %s", err)
+	}
+	err = ioutil.WriteFile(configPath, data, 0644)
+	if err != nil {
+		importer.Logger.Error("Failed to write file %s", err)
+	}
+
+	_, err = client.Alias().
+		Remove(fmt.Sprintf("%s_v%d", importer.C.IndexName, importer.C.LastIndexVersion), importer.C.IndexName).
+		Add(importer.C.CurrentIndex, importer.C.IndexName).Do()
+	if err != nil {
+		importer.Logger.Error("Failed to change aliases because of %s", err)
+		importer.Logger.Info("Creating index alias")
+		_, err = client.Alias().
+			Add(importer.C.CurrentIndex, importer.C.IndexName).Do()
+		if err != nil {
+			importer.Logger.Error("Failed to create index: %s", err)
+		}
+	}
+	_, err = client.DeleteIndex(fmt.Sprintf("%s_v%d", importer.C.IndexName, importer.C.LastIndexVersion)).Do()
+
+	if err != nil {
+		importer.Logger.Error("Failed to delete index %s: %s", importer.C.LastIndexVersion, err)
+	}
 }
 
 func actionUpdate(ctx *cli.Context) {

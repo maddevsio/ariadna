@@ -12,7 +12,7 @@ func downloadFromUrl(url string, destination string) error {
 
 	output, err := os.Create(destination)
 	if err != nil {
-		fmt.Errorf("Error while creating %s: %s", destination, err)
+		return fmt.Errorf("Error while creating %s: %s", destination, err)
 	}
 	defer output.Close()
 	client := &http.Client{}
