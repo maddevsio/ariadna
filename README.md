@@ -1,4 +1,4 @@
-### GeoGoder
+### Ariadna
 Its open-source geocoder built on top of ElasticSearch for fast geocoding and provide more better search for CIS countries
 
 ###What's a geocoder do anyway?
@@ -24,6 +24,11 @@ Reverse geocoding is the opposite, it transforms your current geographic locatio
 
 * ElasticSearch
 * PostgreSQL
+
+Ariadna consists of 3 parts:
+* Importer: OSM data importer to elastic search
+* Updater: Download and import data
+* WebUI for searching data
 
 ### Install'n'Run
 
