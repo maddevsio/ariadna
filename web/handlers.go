@@ -64,3 +64,6 @@ func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	w.Write(data)
 
 }
+func index(w http.ResponseWriter, r *http.Request) {
+
+}
