@@ -6,7 +6,7 @@ Its open-source geocoder built on top of ElasticSearch for fast geocoding and pr
 
 Geocoding is the process of transforming input text, such as an address, or a name of a place—to a location on the earth's surface.
 
-![Ariadna](http://imgur.com/TPW4cOs)
+![Demo](http://imgur.com/TPW4cOs)
 
 
 It able to search:
