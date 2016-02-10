@@ -1,34 +1,22 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"github.com/gen1us2k/osm-geogoder/osm-importer"
+	"github.com/gen1us2k/ariadna/importer"
 	"github.com/qedus/osmpbf"
 	"gopkg.in/olivere/elastic.v3"
 	"io/ioutil"
 	"os"
 	"runtime"
+	"github.com/codegangsta/cli"
 )
 
-var CitiesAndTowns, Roads []importer.JsonWay
-
-func getSettings() importer.Settings {
-
-	// command line flags
-	batchSize := flag.Int("batch", 50000, "batch leveldb writes in batches of this size")
-	configPath := flag.String("config", "config.json", "config file path")
-	indexPath := flag.String("index", "index.json", "ES index settings file path")
-
-	flag.Parse()
-	args := flag.Args()
-
-	if len(args) < 1 {
-		importer.Logger.Fatal("invalid args, you must specify a PBF file")
-	}
-
-	return importer.Settings{args[0], *batchSize, *configPath, *indexPath}
-}
+var (
+	CitiesAndTowns, Roads []importer.JsonWay
+	Version string = "dev"
+	configPath string
+	indexSettingsPath string
+)
 
 func getDecoder(file *os.File) *osmpbf.Decoder {
 	decoder := osmpbf.NewDecoder(file)
@@ -40,17 +28,63 @@ func getDecoder(file *os.File) *osmpbf.Decoder {
 }
 
 func main() {
+	app := cli.NewApp()
+	app.Name = "Ariadna"
+	app.Usage = "OSM Geocoder"
+	app.Version = Version
 
-	settings := getSettings()
-	importer.ReadConfig(settings.ConfigPath)
-	indexSettings, err := ioutil.ReadFile(settings.IndexPath)
+	app.Commands = [] cli.Command{
+		{
+			Name:      "import",
+			Aliases:   []string{"i"},
+			Usage:     "Import OSM file to ElasticSearch",
+			Action:    actionImport,
+			ArgsUsage: "<filename>",
+		},
+		{
+			Name:    "update",
+			Aliases: []string{"u"},
+			Usage:   "Download OSM file and update index",
+			Action:  actionUpdate,
+		},
+		{
+			Name:    "http",
+			Aliases: []string{"h"},
+			Usage:   "Run http server",
+			Action:  actionHttp,
+		},
+	}
+	app.Flags= cli.Flag{
+		cli.StringFlag{
+			Name: "config",
+			Usage:"Config file path",
+			Destination: &configPath,
+		},
+		cli.StringFlag{
+			Name: "index_settings",
+			Usage: "ElasticSearch Index settings",
+			Destination: &indexSettingsPath,
+		},
+	}
+	if configPath == "" {
+		configPath = "config.json"
+	}
+	if indexSettingsPath == "" {
+		indexSettingsPath = "index.json"
+	}
+//	settings := getSettings()
+
+}
+func actionImport(ctx *cli.Context) {
+	importer.ReadConfig(configPath)
+	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
 	}
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
-	file := importer.OpenFile(settings.PbfPath)
+	file := importer.OpenFile(importer.C.PbfPath)
 	fmt.Println(importer.C.IndexName)
 	defer file.Close()
 	decoder := getDecoder(file)
@@ -71,7 +105,7 @@ func main() {
 
 	importer.Logger.Info("Cities, villages, towns and districts found")
 
-	file = importer.OpenFile(settings.PbfPath)
+	file = importer.OpenFile(importer.C.PbfPath)
 	defer file.Close()
 	decoder = getDecoder(file)
 
@@ -81,7 +115,7 @@ func main() {
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
 	importer.JsonNodesToEs(AddressNodes, CitiesAndTowns, client)
-	file = importer.OpenFile(settings.PbfPath)
+	file = importer.OpenFile(importer.C.PbfPath)
 	defer file.Close()
 	decoder = getDecoder(file)
 
@@ -91,4 +125,12 @@ func main() {
 	importer.Logger.Info("Searching all roads intersecitons")
 	Intersections := importer.GetRoadIntersectionsFromPG()
 	importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
+}
+
+func actionUpdate(ctx *cli.Context) {
+	fmt.Println("Here")
+}
+
+func actionHttp(ctx *cli.Context) {
+	fmt.Println("Start http server")
 }
