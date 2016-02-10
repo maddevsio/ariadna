@@ -2,20 +2,20 @@ package main
 
 import (
 	"fmt"
+	"github.com/codegangsta/cli"
 	"github.com/gen1us2k/ariadna/importer"
 	"github.com/qedus/osmpbf"
 	"gopkg.in/olivere/elastic.v3"
 	"io/ioutil"
 	"os"
 	"runtime"
-	"github.com/codegangsta/cli"
 )
 
 var (
 	CitiesAndTowns, Roads []importer.JsonWay
-	Version string = "dev"
-	configPath string
-	indexSettingsPath string
+	Version               string = "dev"
+	configPath            string
+	indexSettingsPath     string
 )
 
 func getDecoder(file *os.File) *osmpbf.Decoder {
@@ -33,7 +33,7 @@ func main() {
 	app.Usage = "OSM Geocoder"
 	app.Version = Version
 
-	app.Commands = [] cli.Command{
+	app.Commands = []cli.Command{
 		{
 			Name:      "import",
 			Aliases:   []string{"i"},
@@ -54,28 +54,37 @@ func main() {
 			Action:  actionHttp,
 		},
 	}
-	app.Flags= []cli.Flag{
+	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name: "config",
-			Usage:"Config file path",
+			Name:        "config",
+			Usage:       "Config file path",
 			Destination: &configPath,
 		},
 		cli.StringFlag{
-			Name: "index_settings",
-			Usage: "ElasticSearch Index settings",
+			Name:        "index_settings",
+			Usage:       "ElasticSearch Index settings",
 			Destination: &indexSettingsPath,
 		},
 	}
-	if configPath == "" {
-		configPath = "config.json"
+
+	app.Before = func(context *cli.Context) error {
+		if configPath == "" {
+			configPath = "config.json"
+		}
+		if indexSettingsPath == "" {
+			indexSettingsPath = "index.json"
+		}
+		return nil
 	}
-	if indexSettingsPath == "" {
-		indexSettingsPath = "index.json"
+
+	if err := app.Run(os.Args); err != nil {
+		importer.Logger.Fatal("error on run app, %v", err)
 	}
-//	settings := getSettings()
+
 
 }
 func actionImport(ctx *cli.Context) {
+	fmt.Println(configPath)
 	importer.ReadConfig(configPath)
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
@@ -84,7 +93,7 @@ func actionImport(ctx *cli.Context) {
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
-	file := importer.OpenFile(importer.C.PbfPath)
+	file := importer.OpenFile(importer.C.FileName)
 	fmt.Println(importer.C.IndexName)
 	defer file.Close()
 	decoder := getDecoder(file)
@@ -105,7 +114,7 @@ func actionImport(ctx *cli.Context) {
 
 	importer.Logger.Info("Cities, villages, towns and districts found")
 
-	file = importer.OpenFile(importer.C.PbfPath)
+	file = importer.OpenFile(importer.C.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 
@@ -115,7 +124,7 @@ func actionImport(ctx *cli.Context) {
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
 	importer.JsonNodesToEs(AddressNodes, CitiesAndTowns, client)
-	file = importer.OpenFile(importer.C.PbfPath)
+	file = importer.OpenFile(importer.C.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 

@@ -53,13 +53,6 @@ type PGNode struct {
 	Lat     float64
 }
 
-type Settings struct {
-	PbfPath    string
-	BatchSize  int
-	ConfigPath string
-	IndexPath  string
-}
-
 type Translate struct {
 	Original  string
 	Translate string
@@ -69,7 +62,9 @@ type Config struct {
 	IndexName    string `json:"index_name"`
 	PGConnString string `json:"pg_conn_string"`
 	IndexType    string `json:"index_type"`
-	PbfPath    string `json:"file_name"`
+	FileName      string `json:"file_name"`
+	DownloadUrl string `json:"download_url"`
+	IndexVersion string `json:"index_version"`
 }
 
 var C Config

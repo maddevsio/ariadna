@@ -1,5 +1,9 @@
 {
-  "index_name": "addresses_new",
+  "index_name": "addresses",
   "index_type": "address",
-  "pg_conn_string": "host=localhost user=geo password=geo dbname=geo sslmode=disable"
+  "pg_conn_string": "host=localhost user=geo password=geo dbname=geo sslmode=disable",
+  "download_url": "http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf",
+  "file_name": "kyrgyzstan-latest.osm.pbf",
+  "index_version": "5",
+  "http_bind_port": 8080
 }
