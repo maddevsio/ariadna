@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"github.com/gen1us2k/ariadna/updater"
 )
 
 var (
@@ -136,7 +137,12 @@ func actionImport(ctx *cli.Context) {
 }
 
 func actionUpdate(ctx *cli.Context) {
-	fmt.Println("Here")
+	importer.ReadConfig(configPath)
+	err := updater.DownloadOSMFile(importer.C.DownloadUrl, importer.C.FileName)
+	if err != nil {
+		importer.Logger.Fatal(err.Error())
+	}
+	actionImport(ctx)
 }
 
 func actionHttp(ctx *cli.Context) {
