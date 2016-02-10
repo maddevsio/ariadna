@@ -1,3 +1,4 @@
+[![Go Report Card](http://goreportcard.com/badge/gen1us2k/ariadna)](http://goreportcard.com/report/gen1us2k/ariadna)
 ### Ariadna
 Its open-source geocoder built on top of ElasticSearch for fast geocoding and provide more better search for CIS countries
 
