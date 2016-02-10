@@ -56,7 +56,11 @@ $(function() {
                     dataType: 'json',
                     contentType: 'application/json',
                     success: function(response) {
-                        marker.bindPopup(response[0].name).openPopup()
+                        var name = response[0].name
+                        if (name === "") {
+                            name = response[0].street + ' ' + response[0].housenumber
+                        }
+                        marker.bindPopup(name).openPopup()
                     }
                 });
             });
