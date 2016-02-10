@@ -6,6 +6,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/gen1us2k/ariadna/importer"
 	"github.com/gen1us2k/ariadna/updater"
+	"github.com/gen1us2k/ariadna/web"
 	"github.com/qedus/osmpbf"
 	"gopkg.in/olivere/elastic.v3"
 	"io/ioutil"
@@ -177,5 +178,5 @@ func actionUpdate(ctx *cli.Context) {
 }
 
 func actionHttp(ctx *cli.Context) {
-	fmt.Println("Start http server")
+	web.StartServer()
 }
