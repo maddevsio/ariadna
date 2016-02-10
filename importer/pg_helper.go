@@ -46,10 +46,8 @@ func RoadsToPg(Roads []JsonWay) {
 		Logger.Fatal(err.Error())
 	}
 
-	if Logger.IsInfo() {
-		Logger.Info("Creating tables")
-		Logger.Info("Started populating tables with many roads")
-	}
+	Logger.Info("Creating tables")
+	Logger.Info("Started populating tables with many roads")
 
 	const insQuery = `INSERT INTO road (node_id, name, old_name, coords) values($1, $2, $3, ST_GeomFromText($4));`
 	for _, road := range Roads {
@@ -91,9 +89,7 @@ func RoadsToPg(Roads []JsonWay) {
 			WHERE geometrytype(st_intersection(a.coords,b.coords)) = 'POINT'
 		);
 	`
-	if Logger.IsInfo() {
-		Logger.Info("Started searching intersections")
-	}
+	Logger.Info("Started searching intersections")
 	_, err = pg_db.Query(searchQuery)
 
 	if err != nil {

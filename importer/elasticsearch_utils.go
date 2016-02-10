@@ -11,13 +11,9 @@ import (
 )
 
 func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic.Client) {
-	if Logger.IsInfo() {
-		Logger.Info("Populating elastic search index")
-	}
+	Logger.Info("Populating elastic search index")
 	bulkClient := client.Bulk()
-	if Logger.IsInfo() {
-		Logger.Info("Creating bulk client")
-	}
+	Logger.Info("Creating bulk client")
 	for _, address := range Addresses {
 		cityName, villageName, suburbName, townName := "", "", "", ""
 		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
@@ -78,26 +74,18 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 		}
 
 	}
-	if Logger.IsInfo() {
-		Logger.Info("Starting to insert many data to elasticsearch")
-	}
+	Logger.Info("Starting to insert many data to elasticsearch")
 	_, err := bulkClient.Do()
-	if Logger.IsInfo() {
-		Logger.Info("Data insert")
-	}
+	Logger.Info("Data insert")
 	if err != nil {
 		Logger.Error(err.Error())
 	}
 }
 
 func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elastic.Client) {
-	if Logger.IsInfo() {
-		Logger.Info("Populating elastic search index with Nodes")
-	}
+	Logger.Info("Populating elastic search index with Nodes")
 	bulkClient := client.Bulk()
-	if Logger.IsInfo() {
-		Logger.Info("Created bulk request to elasticsearch")
-	}
+	Logger.Info("Created bulk request to elasticsearch")
 	for _, address := range Addresses {
 		cityName, villageName, suburbName, townName := "", "", "", ""
 		for _, city := range CitiesAndTowns {
@@ -150,13 +138,9 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 		}
 
 	}
-	if Logger.IsInfo() {
-		Logger.Info("Started to bulk insert to elasticsearch")
-	}
+	Logger.Info("Started to bulk insert to elasticsearch")
 	_, err := bulkClient.Do()
-	if Logger.IsInfo() {
-		Logger.Info("Data inserted")
-	}
+	Logger.Info("Data inserted")
 	if err != nil {
 		Logger.Error(err.Error())
 	}

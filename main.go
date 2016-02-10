@@ -81,7 +81,6 @@ func main() {
 		importer.Logger.Fatal("error on run app, %v", err)
 	}
 
-
 }
 func actionImport(ctx *cli.Context) {
 	fmt.Println(configPath)

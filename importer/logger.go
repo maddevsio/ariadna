@@ -1,12 +1,11 @@
 package importer
 
 import (
-	log "github.com/mgutz/logxi/v1"
-	"os"
+	log "github.com/gen1us2k/ariadna/logger"
 )
 
 var Logger log.Logger
 
 func init() {
-	Logger = log.NewLogger(log.NewConcurrentWriter(os.Stdout), "importer")
+	Logger = log.L("importer")
 }
