@@ -6,7 +6,7 @@ Its open-source geocoder built on top of ElasticSearch for fast geocoding and pr
 
 Geocoding is the process of transforming input text, such as an address, or a name of a place—to a location on the earth's surface.
 
-!(http://imgur.com/TPW4cOs)
+![Demo](http://imgur.com/TPW4cOs)
 
 
 It able to search:
@@ -33,25 +33,114 @@ Ariadna consists of 3 parts:
 * Updater: Download and import data
 * WebUI for searching data
 
-### Install'n'Run
+### Install
 
 
 ```
   git clone git@github.com:gen1us2k/osm-geogoder.git
   cd osm-geogoder
   make depends
-  make 
-  ./importer kyrgyzstan-latest.osm.pbf
+  make
+```
+### Configure
+```
+cp config.json.example config.json
+```
+Specify your settings
+```
+{
+  "index_name": "addresses", # Name used for auto creating elastic search indexes
+  "index_type": "address", # Type of index data
+  "pg_conn_string": "host=localhost user=geo password=geo dbname=geo sslmode=disable", # PG connections settings
+  "download_url": "http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf", # Url where download osm.pbf data
+  "file_name": "kyrgyzstan-latest.osm.pbf", # destination file 
+  "index_version": "5", # Current index version
+  "http_bind_port": 8080 # not used yet
+}
+```
+Elastic search index settings
+```
+cp index.json.example index.json
+```
+Change it for you
+```
+{
+    "settings": {
+        "analysis": {
+            "filter": {
+                "map_poi_filter": {
+                    "type": "synonym",
+                    "synonyms": [
+                    	# all synonyms goes here
+                    ]
+                }
+            },
+            "analyzer": {
+                "map_synonyms": {
+                    "tokenizer": "standard",
+                    "filter": [
+                        "lowercase",
+                        "map_poi_filter"
+                    ]
+                }
+            }
+        }
+    },
+    "mappings":
+        {"address":
+            {"properties":
+                {
+                    "centroid": {
+                        "type": "geo_point" # need to reverse geocoding
+                    }
+
+                }
+            }
+        }
+}
 ```
 
-### Search Data
+### Usage
+First import data. Download it from geofabrik.de and run
+```
+$ ./ariadna import
+```
+Or you can specify download_url and file_name into settings and run
+```
+$ ./ariadna update
+```
+This creates elasticsearch index 
 
-Simple search can be accessed by
+### WebUI
 ```
-  http://localhost:9200/addresses/_search=?q=QUERY
+$ ./ariadna http
 ```
+Open http://localhost:8080 in your browser and enjoy
+
+### Http API
+There is http api for geocode and reverse geocode
+1. /api/search/:query
+2. /api/reverse/:lat/:lon
+ 
 
 ### TODO
 * Remove pg for searching intersections
 * Test search for other countries
 * Write some tests
+
+
+### Contributing
+1. Fork it ( https://github.com/gen1us2k/ariadna/fork )
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create a new Pull Request
+
+
+### Pr, issues
+You're welcome.
+
+### NOTE
+Tested only for my city and my country.
+
+
