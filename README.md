@@ -50,5 +50,5 @@ Simple search can be accessed by
 
 ### TODO
 * Remove pg for searching intersections
-* Make search for non Kyrgyzstan 
-* Check search for non CIS countries
+* Test search for other countries
+* Write some tests
