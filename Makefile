@@ -1,4 +1,4 @@
-TARGET=importer
+TARGET=ariadna
 
 all: clean build
 

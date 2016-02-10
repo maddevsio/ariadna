@@ -54,7 +54,7 @@ func main() {
 			Action:  actionHttp,
 		},
 	}
-	app.Flags= cli.Flag{
+	app.Flags= []cli.Flag{
 		cli.StringFlag{
 			Name: "config",
 			Usage:"Config file path",
