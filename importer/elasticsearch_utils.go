@@ -64,11 +64,11 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 			word["trans"] = translated
 		}
 		housenumber := translit.Translit(address.Tags["addr:housenumber"])
-		marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, address.Tags["old_name"], centroid, pg}
+		marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, address.Tags["old_name"], centroid, pg, false}
 		index := elastic.NewBulkIndexRequest().Index(C.CurrentIndex).Type(C.IndexType).Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
 		bulkClient = bulkClient.Add(index)
 		if translated != "" {
-			marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, address.Tags["old_name"], centroid, pg}
+			marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, address.Tags["old_name"], centroid, pg, false}
 			index = elastic.NewBulkIndexRequest().Index(C.CurrentIndex).Type(C.IndexType).Id(strconv.FormatInt(address.ID*2, 10)).Doc(marshall)
 			bulkClient = bulkClient.Add(index)
 		}
@@ -128,11 +128,11 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 			word["trans"] = translated
 		}
 		housenumber := translit.Translit(address.Tags["addr:housenumber"])
-		marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, address.Tags["old_name"], centroid, nil}
+		marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, address.Tags["old_name"], centroid, nil, false}
 		index := elastic.NewBulkIndexRequest().Index(C.CurrentIndex).Type(C.IndexType).Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
 		bulkClient = bulkClient.Add(index)
 		if translated != "" {
-			marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, address.Tags["old_name"], centroid, nil}
+			marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, address.Tags["old_name"], centroid, nil, false}
 			index = elastic.NewBulkIndexRequest().Index(C.CurrentIndex).Type(C.IndexType).Id(strconv.FormatInt(address.ID*2, 10)).Doc(marshall)
 			bulkClient = bulkClient.Add(index)
 		}

@@ -43,6 +43,7 @@ type JsonEsIndex struct {
 	OldName     string             `json:"old_name"`
 	Centroid    map[string]float64 `json:"centroid"`
 	Geom        interface{}        `json:"geom"`
+	Custom      bool               `json:"custom"`
 }
 
 type PGNode struct {

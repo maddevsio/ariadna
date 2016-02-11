@@ -198,7 +198,7 @@ func actionHttp(ctx *cli.Context) {
 }
 
 type CustomData struct {
-	ID   int64     `json:"id"`
+	ID   int64   `json:"id"`
 	Name string  `json:"name"`
 	Lat  float64 `json:"lat"`
 	Lon  float64 `json:"lon"`
@@ -225,6 +225,7 @@ func actionCustom(ctx *cli.Context) {
 		marshall := importer.JsonEsIndex{
 			Name:     item.Name,
 			Centroid: centroid,
+			Custom:   true,
 		}
 		index := elastic.NewBulkIndexRequest().
 			Index(importer.C.CurrentIndex).
