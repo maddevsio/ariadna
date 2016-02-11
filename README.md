@@ -1,6 +1,6 @@
 [![Go Report Card](http://goreportcard.com/badge/gen1us2k/ariadna)](http://goreportcard.com/report/gen1us2k/ariadna)
 ### Ariadna
-Its open-source geocoder built on top of ElasticSearch for fast geocoding and provide more better search for CIS countries
+Is the open-source geocoder built on top of ElasticSearch for fast geocoding and provides better search for CIS countries
 
 ###What's a geocoder do anyway?
 
@@ -32,6 +32,7 @@ Ariadna consists of 3 parts:
 * Importer: OSM data importer to elastic search
 * Updater: Download and import data
 * WebUI for searching data
+* Custom importer
 
 ### Install
 
