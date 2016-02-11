@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strconv"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 	Version               string = "dev"
 	configPath            string
 	indexSettingsPath     string
+	customDataPath        string
 )
 
 func getDecoder(file *os.File) *osmpbf.Decoder {
@@ -56,6 +58,12 @@ func main() {
 			Usage:   "Run http server",
 			Action:  actionHttp,
 		},
+		{
+			Name:    "custom",
+			Aliases: []string{"c"},
+			Usage:   "Import custom data",
+			Action:  actionCustom,
+		},
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -68,6 +76,11 @@ func main() {
 			Usage:       "ElasticSearch Index settings",
 			Destination: &indexSettingsPath,
 		},
+		cli.StringFlag{
+			Name:        "custom_data",
+			Usage:       "Custom data file path",
+			Destination: &customDataPath,
+		},
 	}
 
 	app.Before = func(context *cli.Context) error {
@@ -76,6 +89,9 @@ func main() {
 		}
 		if indexSettingsPath == "" {
 			indexSettingsPath = "index.json"
+		}
+		if customDataPath == "" {
+			customDataPath = "custom.json"
 		}
 		return nil
 	}
@@ -179,4 +195,46 @@ func actionUpdate(ctx *cli.Context) {
 
 func actionHttp(ctx *cli.Context) {
 	web.StartServer()
+}
+
+type CustomData struct {
+	ID   int64     `json:"id"`
+	Name string  `json:"name"`
+	Lat  float64 `json:"lat"`
+	Lon  float64 `json:"lon"`
+}
+type Custom []CustomData
+
+func actionCustom(ctx *cli.Context) {
+	importer.ReadConfig(configPath)
+	var custom Custom
+	data, err := ioutil.ReadFile(customDataPath)
+	if err != nil {
+		importer.Logger.Fatal(err.Error())
+	}
+	err = json.Unmarshal(data, &custom)
+	if err != nil {
+		importer.Logger.Fatal(err.Error())
+	}
+	client, err := elastic.NewClient()
+	bulkClient := client.Bulk()
+	for _, item := range custom {
+		centroid := make(map[string]float64)
+		centroid["lat"] = item.Lat
+		centroid["lon"] = item.Lon
+		marshall := importer.JsonEsIndex{
+			Name:     item.Name,
+			Centroid: centroid,
+		}
+		index := elastic.NewBulkIndexRequest().
+			Index(importer.C.CurrentIndex).
+			Type(importer.C.IndexType).
+			Id(strconv.FormatInt(item.ID, 10)).
+			Doc(marshall)
+		bulkClient = bulkClient.Add(index)
+	}
+	_, err = bulkClient.Do()
+	if err != nil {
+		importer.Logger.Error(err.Error())
+	}
 }
