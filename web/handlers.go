@@ -47,7 +47,8 @@ func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	lat, _ := strconv.ParseFloat(ps.ByName("lat"), 64)
 	lon, _ := strconv.ParseFloat(ps.ByName("lon"), 64)
 	qs.GeoPoint(elastic.GeoPointFromLatLon(lat, lon))
-	qs.Distance("200m")
+	qs.Distance("10m")
+	qs.QueryName("filtered")
 
 	result, err := es.Search().Index("addresses").Query(qs).Do()
 	if err != nil {
