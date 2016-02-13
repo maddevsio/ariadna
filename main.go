@@ -13,6 +13,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"github.com/gen1us2k/ariadna/common"
 )
 
 var (
@@ -102,7 +103,7 @@ func main() {
 
 }
 func actionImport(ctx *cli.Context) {
-	importer.ReadConfig(configPath)
+	common.ReadConfig(configPath)
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
@@ -110,7 +111,7 @@ func actionImport(ctx *cli.Context) {
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
-	file := importer.OpenFile(importer.C.FileName)
+	file := importer.OpenFile(common.C.FileName)
 	defer file.Close()
 	decoder := getDecoder(file)
 
@@ -120,10 +121,10 @@ func actionImport(ctx *cli.Context) {
 		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
 
-	indexVersion := fmt.Sprintf("%s_v%d", importer.C.IndexName, importer.C.IndexVersion+1)
-	importer.C.CurrentIndex = indexVersion
-	importer.Logger.Info("Creating index with name %s", importer.C.CurrentIndex)
-	_, err = client.CreateIndex(importer.C.CurrentIndex).BodyString(string(indexSettings)).Do()
+	indexVersion := fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.IndexVersion+1)
+	common.C.CurrentIndex = indexVersion
+	importer.Logger.Info("Creating index with name %s", common.C.CurrentIndex)
+	_, err = client.CreateIndex(common.C.CurrentIndex).BodyString(string(indexSettings)).Do()
 	if err != nil {
 		importer.Logger.Error(err.Error())
 	}
@@ -134,7 +135,7 @@ func actionImport(ctx *cli.Context) {
 
 	importer.Logger.Info("Cities, villages, towns and districts found")
 
-	file = importer.OpenFile(importer.C.FileName)
+	file = importer.OpenFile(common.C.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 
@@ -144,7 +145,7 @@ func actionImport(ctx *cli.Context) {
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
 	importer.JsonNodesToEs(AddressNodes, CitiesAndTowns, client)
-	file = importer.OpenFile(importer.C.FileName)
+	file = importer.OpenFile(common.C.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 
@@ -154,9 +155,9 @@ func actionImport(ctx *cli.Context) {
 	importer.Logger.Info("Searching all roads intersecitons")
 	Intersections := importer.GetRoadIntersectionsFromPG()
 	importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
-	importer.C.LastIndexVersion = importer.C.IndexVersion
-	importer.C.IndexVersion += 1
-	data, err := json.Marshal(importer.C)
+	common.C.LastIndexVersion = common.C.IndexVersion
+	common.C.IndexVersion += 1
+	data, err := json.Marshal(common.C)
 	if err != nil {
 		importer.Logger.Error("Failed to encode to json: %s", err)
 	}
@@ -166,27 +167,27 @@ func actionImport(ctx *cli.Context) {
 	}
 
 	_, err = client.Alias().
-		Remove(fmt.Sprintf("%s_v%d", importer.C.IndexName, importer.C.LastIndexVersion), importer.C.IndexName).
-		Add(importer.C.CurrentIndex, importer.C.IndexName).Do()
+		Remove(fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.LastIndexVersion), common.C.IndexName).
+		Add(common.C.CurrentIndex, common.C.IndexName).Do()
 	if err != nil {
 		importer.Logger.Error("Failed to change aliases because of %s", err)
 		importer.Logger.Info("Creating index alias")
 		_, err = client.Alias().
-			Add(importer.C.CurrentIndex, importer.C.IndexName).Do()
+			Add(common.C.CurrentIndex, common.C.IndexName).Do()
 		if err != nil {
 			importer.Logger.Error("Failed to create index: %s", err)
 		}
 	}
-	_, err = client.DeleteIndex(fmt.Sprintf("%s_v%d", importer.C.IndexName, importer.C.LastIndexVersion)).Do()
+	_, err = client.DeleteIndex(fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.LastIndexVersion)).Do()
 
 	if err != nil {
-		importer.Logger.Error("Failed to delete index %s: %s", importer.C.LastIndexVersion, err)
+		importer.Logger.Error("Failed to delete index %s: %s", common.C.LastIndexVersion, err)
 	}
 }
 
 func actionUpdate(ctx *cli.Context) {
-	importer.ReadConfig(configPath)
-	err := updater.DownloadOSMFile(importer.C.DownloadUrl, importer.C.FileName)
+	common.ReadConfig(configPath)
+	err := updater.DownloadOSMFile(common.C.DownloadUrl, common.C.FileName)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
 	}
@@ -206,7 +207,7 @@ type CustomData struct {
 type Custom []CustomData
 
 func actionCustom(ctx *cli.Context) {
-	importer.ReadConfig(configPath)
+	common.ReadConfig(configPath)
 	var custom Custom
 	data, err := ioutil.ReadFile(customDataPath)
 	if err != nil {
@@ -228,8 +229,8 @@ func actionCustom(ctx *cli.Context) {
 			Custom:   true,
 		}
 		index := elastic.NewBulkIndexRequest().
-			Index(importer.C.CurrentIndex).
-			Type(importer.C.IndexType).
+			Index(common.C.CurrentIndex).
+			Type(common.C.IndexType).
 			Id(strconv.FormatInt(item.ID, 10)).
 			Doc(marshall)
 		bulkClient = bulkClient.Add(index)

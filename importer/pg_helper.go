@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"github.com/gen1us2k/ariadna/common"
 )
 
 func RoadsToPg(Roads []JsonWay) {
-	pg_db, err := sql.Open("postgres", C.PGConnString)
+	pg_db, err := sql.Open("postgres", common.C.PGConnString)
 	if err != nil {
 		Logger.Fatal(err.Error())
 	}
@@ -100,7 +101,7 @@ func RoadsToPg(Roads []JsonWay) {
 
 func GetRoadIntersectionsFromPG() []JsonNode {
 	var Nodes []JsonNode
-	pg_db, err := sql.Open("postgres", C.PGConnString)
+	pg_db, err := sql.Open("postgres", common.C.PGConnString)
 	if err != nil {
 		Logger.Fatal(err.Error())
 	}
