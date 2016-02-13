@@ -1,7 +1,8 @@
 package common
+
 import (
-	"io/ioutil"
 	"encoding/json"
+	"io/ioutil"
 )
 
 func ReadConfig(filename string) {

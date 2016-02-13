@@ -2,13 +2,13 @@ package importer
 
 import (
 	"fmt"
+	"github.com/gen1us2k/ariadna/common"
 	"github.com/gen1us2k/go-translit"
 	"github.com/kellydunn/golang-geo"
 	gj "github.com/paulmach/go.geojson"
 	"gopkg.in/olivere/elastic.v3"
 	"strconv"
 	"strings"
-	"github.com/gen1us2k/ariadna/common"
 )
 
 func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic.Client) {
@@ -65,15 +65,27 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 			word["trans"] = translated
 		}
 		housenumber := translit.Translit(address.Tags["addr:housenumber"])
-		marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, address.Tags["old_name"], centroid, pg, false}
-		index := elastic.NewBulkIndexRequest().Index(common.C.CurrentIndex).Type(common.C.IndexType).Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
-		bulkClient = bulkClient.Add(index)
-		if translated != "" {
-			marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, address.Tags["old_name"], centroid, pg, false}
-			index = elastic.NewBulkIndexRequest().Index(common.C.CurrentIndex).Type(common.C.IndexType).Id(strconv.FormatInt(address.ID*2, 10)).Doc(marshall)
-			bulkClient = bulkClient.Add(index)
+		marshall := JsonEsIndex{
+			Country:        "KG",
+			City:           cityName,
+			Village:        villageName,
+			Town:           townName,
+			District:       suburbName,
+			Street:         cleanAddress(address.Tags["addr:street"]),
+			HouseNumber:    housenumber,
+			Name:           name,
+			OldName:        address.Tags["old_name"],
+			TranslatedName: translated,
+			Centroid:       centroid,
+			Geom:           pg,
+			Custom:         false,
 		}
-
+		index := elastic.NewBulkIndexRequest().
+			Index(common.C.CurrentIndex).
+			Type(common.C.IndexType).
+			Id(strconv.FormatInt(address.ID, 10)).
+			Doc(marshall)
+		bulkClient = bulkClient.Add(index)
 	}
 	Logger.Info("Starting to insert many data to elasticsearch")
 	_, err := bulkClient.Do()
@@ -129,15 +141,29 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 			word["trans"] = translated
 		}
 		housenumber := translit.Translit(address.Tags["addr:housenumber"])
-		marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, name, address.Tags["old_name"], centroid, nil, false}
-		index := elastic.NewBulkIndexRequest().Index(common.C.CurrentIndex).Type(common.C.IndexType).Id(strconv.FormatInt(address.ID, 10)).Doc(marshall)
-		bulkClient = bulkClient.Add(index)
-		if translated != "" {
-			marshall := JsonEsIndex{"KG", cityName, villageName, townName, suburbName, cleanAddress(address.Tags["addr:street"]), housenumber, translated, address.Tags["old_name"], centroid, nil, false}
-			index = elastic.NewBulkIndexRequest().Index(common.C.CurrentIndex).Type(common.C.IndexType).Id(strconv.FormatInt(address.ID*2, 10)).Doc(marshall)
-			bulkClient = bulkClient.Add(index)
+
+		marshall := JsonEsIndex{
+			Country:        "KG",
+			City:           cityName,
+			Village:        villageName,
+			Town:           townName,
+			District:       suburbName,
+			Street:         cleanAddress(address.Tags["addr:street"]),
+			HouseNumber:    housenumber,
+			Name:           name,
+			TranslatedName: translated,
+			OldName:        address.Tags["old_name"],
+			Centroid:       centroid,
+			Geom:           nil,
+			Custom:         false,
 		}
 
+		index := elastic.NewBulkIndexRequest().
+			Index(common.C.CurrentIndex).
+			Type(common.C.IndexType).
+			Id(strconv.FormatInt(address.ID, 10)).
+			Doc(marshall)
+		bulkClient = bulkClient.Add(index)
 	}
 	Logger.Info("Started to bulk insert to elasticsearch")
 	_, err := bulkClient.Do()

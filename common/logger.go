@@ -9,4 +9,3 @@ var logger log.Logger
 func init() {
 	logger = log.L("common")
 }
-

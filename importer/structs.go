@@ -32,18 +32,30 @@ type JsonRelation struct {
 }
 
 type JsonEsIndex struct {
-	Country     string             `json:"country"`
-	City        string             `json:"city"`
-	Village     string             `json:"village"`
-	Town        string             `json:"town"`
-	District    string             `json:"district"`
-	Street      string             `json:"street"`
-	HouseNumber string             `json:"housenumber"`
-	Name        string             `json:"name"`
-	OldName     string             `json:"old_name"`
-	Centroid    map[string]float64 `json:"centroid"`
-	Geom        interface{}        `json:"geom"`
-	Custom      bool               `json:"custom"`
+	Country           string             `json:"country"`
+	City              string             `json:"city"`
+	Village           string             `json:"village"`
+	Town              string             `json:"town"`
+	District          string             `json:"district"`
+	Street            string             `json:"street"`
+	HouseNumber       string             `json:"housenumber"`
+	Name              string             `json:"name"`
+	OldName           string             `json:"old_name"`
+	HouseName         string             `json:"housename"`
+	PostCode          string             `json:"postcode"`
+	LocalName         string             `json:"local_name"`
+	AlternativeName   string             `json:"alternative_name"`
+	InternationalName string             `json:"international"`
+	NationalName      string             `json:"national"`
+	OfficialName      string             `json:"official"`
+	RegionalName      string             `json:"regional"`
+	ShortName         string             `json:"short_name"`
+	SortingName       string             `json:"sorting"`
+	TranslatedName    string             `json:"translated"`
+	Custom            bool               `json:"custom"`
+	Intersection      bool               `json:"intersection"`
+	Centroid          map[string]float64 `json:"centroid"`
+	Geom              interface{}        `json:"geom"`
 }
 
 type PGNode struct {
@@ -58,4 +70,3 @@ type Translate struct {
 	Original  string
 	Translate string
 }
-

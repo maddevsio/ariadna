@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
+	"github.com/gen1us2k/ariadna/common"
 	"github.com/gen1us2k/ariadna/importer"
 	"github.com/gen1us2k/ariadna/updater"
 	"github.com/gen1us2k/ariadna/web"
@@ -13,7 +14,6 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"github.com/gen1us2k/ariadna/common"
 )
 
 var (
