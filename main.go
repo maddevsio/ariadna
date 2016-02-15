@@ -149,12 +149,14 @@ func actionImport(ctx *cli.Context) {
 	defer file.Close()
 	decoder = getDecoder(file)
 
-	tags = importer.BuildTags("highway")
-	Roads, _ = importer.Run(decoder, db, tags)
-	importer.RoadsToPg(Roads)
-	importer.Logger.Info("Searching all roads intersecitons")
-	Intersections := importer.GetRoadIntersectionsFromPG()
-	importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
+	if !common.C.DontImportIntersections {
+		tags = importer.BuildTags("highway")
+		Roads, _ = importer.Run(decoder, db, tags)
+		importer.RoadsToPg(Roads)
+		importer.Logger.Info("Searching all roads intersecitons")
+		Intersections := importer.GetRoadIntersectionsFromPG()
+		importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
+	}
 	common.C.LastIndexVersion = common.C.IndexVersion
 	common.C.IndexVersion += 1
 	data, err := json.Marshal(common.C)
