@@ -60,6 +60,11 @@ $(function() {
                         if (name === "") {
                             name = response[0].street + ' ' + response[0].housenumber
                         }
+                        marker.bindPopup(name).openPopup();
+                        var name = response[1].name
+                        if (name === "") {
+                            name = response[1].street + ' ' + response[1].housenumber
+                        }
                         marker.bindPopup(name).openPopup()
                     }
                 });

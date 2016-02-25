@@ -140,7 +140,7 @@ func actionImport(ctx *cli.Context) {
 	decoder = getDecoder(file)
 
 	importer.Logger.Info("Searching addresses")
-	tags = importer.BuildTags("addr:street+addr:housenumber,amenity,shop,addr:housenumber")
+	tags = importer.BuildTags("addr:street+addr:housenumber,amenity+name,building+name,addr:housenumber,shop+name,office+name,public_transport+name,cuisine+name,railway+name,sport+name,natural+name,tourism+name,leisure+name,historic+name,man_made+name,landuse+name,waterway+name,aerialway+name,aeroway+name,craft+name,military+name")
 	AddressWays, AddressNodes := importer.Run(decoder, db, tags)
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
