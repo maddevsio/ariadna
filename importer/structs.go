@@ -1,6 +1,10 @@
 package importer
 
-import "github.com/kellydunn/golang-geo"
+import (
+	"github.com/dhconnelly/rtreego"
+	"github.com/kellydunn/golang-geo"
+	"math"
+)
 
 type JsonWay struct {
 	ID       int64             `json:"id"`
@@ -8,6 +12,32 @@ type JsonWay struct {
 	Tags     map[string]string `json:"tags"`
 	Centroid map[string]string `json:"centroid"`
 	Nodes    []*geo.Point      `json:"nodes"`
+	Rect     *rtreego.Rect     `json:"-"`
+}
+
+func (way *JsonWay) Bounds() *rtreego.Rect {
+	return way.Rect
+}
+
+func (way *JsonWay) GetXY() (x, y, z, j float64) {
+	var maxlat, minlat, maxlon, minlon float64
+	minlat = float64(99999999999)
+	minlon = float64(99999999999)
+	for _, point := range way.Nodes {
+		x, y := getXY(point.Lat(), point.Lng())
+		maxlat = math.Max(maxlat, x)
+		minlat = math.Min(minlat, x)
+		maxlon = math.Max(maxlon, y)
+		minlon = math.Min(minlon, y)
+	}
+	return maxlat, minlat, maxlon, minlon
+}
+func getXY(lat, lng float64) (float64, float64) {
+	LAT := (lat * math.Pi) / 180
+	LON := (lng * math.Pi) / 180
+	X := 6371 * math.Sin(LAT) * math.Sin(LON)
+	Y := 6371 * math.Cos(LAT)
+	return X, Y
 }
 
 type Tags struct {

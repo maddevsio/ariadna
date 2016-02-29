@@ -65,6 +65,12 @@ func main() {
 			Usage:   "Import custom data",
 			Action:  actionCustom,
 		},
+		{
+			Name:    "intersections",
+			Aliases: []string{"i"},
+			Usage:   "Process intersections only",
+			Action:  actionIntersection,
+		},
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -150,11 +156,11 @@ func actionImport(ctx *cli.Context) {
 	decoder = getDecoder(file)
 
 	if !common.C.DontImportIntersections {
-		tags = importer.BuildTags("highway")
+		tags = importer.BuildTags("highway+name")
 		Roads, _ = importer.Run(decoder, db, tags)
-		importer.RoadsToPg(Roads)
+		importer.BuildIndex(Roads)
 		importer.Logger.Info("Searching all roads intersecitons")
-		Intersections := importer.GetRoadIntersectionsFromPG()
+		Intersections := importer.SearchIntersections(Roads)
 		importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
 	}
 	common.C.LastIndexVersion = common.C.IndexVersion
@@ -241,4 +247,48 @@ func actionCustom(ctx *cli.Context) {
 	if err != nil {
 		importer.Logger.Error(err.Error())
 	}
+}
+
+func actionIntersection(ctx *cli.Context) {
+	common.ReadConfig(configPath)
+	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
+	if err != nil {
+		importer.Logger.Fatal(err.Error())
+	}
+	db := importer.OpenLevelDB("db")
+	defer db.Close()
+
+	file := importer.OpenFile(common.C.FileName)
+	defer file.Close()
+	decoder := getDecoder(file)
+
+	client, err := elastic.NewClient()
+
+	if err != nil {
+		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
+	}
+
+	indexVersion := fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.IndexVersion)
+	common.C.CurrentIndex = indexVersion
+	importer.Logger.Info("Creating index with name %s", common.C.CurrentIndex)
+	_, err = client.CreateIndex(common.C.CurrentIndex).BodyString(string(indexSettings)).Do()
+	if err != nil {
+		importer.Logger.Error(err.Error())
+	}
+
+	importer.Logger.Info("Searching cities, villages, towns and districts")
+	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")
+	CitiesAndTowns, _ = importer.Run(decoder, db, tags)
+
+	importer.Logger.Info("Cities, villages, towns and districts found")
+
+	file = importer.OpenFile(common.C.FileName)
+	defer file.Close()
+	decoder = getDecoder(file)
+
+	tags = importer.BuildTags("highway+name")
+	Roads, _ = importer.Run(decoder, db, tags)
+	importer.BuildIndex(Roads)
+	Intersections := importer.SearchIntersections(Roads)
+	importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
 }

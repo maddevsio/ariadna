@@ -89,7 +89,12 @@ func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]str
 		var lng, _ = strconv.ParseFloat(latlon["lon"], 64)
 		points = append(points, geo.NewPoint(lat, lng))
 	}
-	marshall := JsonWay{way.ID, "way", way.Tags, centroid, points}
+	marshall := JsonWay{
+		ID:       way.ID,
+		Type:     "way",
+		Tags:     way.Tags,
+		Centroid: centroid,
+		Nodes:    points}
 	return marshall
 
 }
