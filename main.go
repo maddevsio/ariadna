@@ -158,9 +158,9 @@ func actionImport(ctx *cli.Context) {
 	if !common.C.DontImportIntersections {
 		tags = importer.BuildTags("highway+name")
 		Roads, _ = importer.Run(decoder, db, tags)
-		importer.BuildIndex(Roads)
+		importer.RoadsToPg(Roads)
 		importer.Logger.Info("Searching all roads intersecitons")
-		Intersections := importer.SearchIntersections(Roads)
+		Intersections := importer.GetRoadIntersectionsFromPG()
 		importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
 	}
 	common.C.LastIndexVersion = common.C.IndexVersion
