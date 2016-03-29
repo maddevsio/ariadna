@@ -88,6 +88,7 @@ func RoadsToPg(Roads []JsonWay) {
 			INNER JOIN road b
 			ON ST_INTERSECTS(a.coords,b.coords)
 			WHERE geometrytype(st_intersection(a.coords,b.coords)) = 'POINT'
+			AND a.name != b.name
 		);
 	`
 	Logger.Info("Started searching intersections")
