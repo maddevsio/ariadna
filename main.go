@@ -185,7 +185,9 @@ func actionImport(ctx *cli.Context) {
 	defer file.Close()
 	decoder := getDecoder(file)
 
-	client, err := elastic.NewClient()
+	client, err := elastic.NewClient(
+		elastic.SetURL(common.AC.ElasticSearchHost),
+	)
 
 	if err != nil {
 		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
@@ -307,8 +309,10 @@ func actionCustom(ctx *cli.Context) {
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
 	}
-	elastic.SetURL()
-	client, err := elastic.NewClient()
+
+	client, err := elastic.NewClient(
+		elastic.SetURL(common.AC.ElasticSearchHost),
+	)
 	bulkClient := client.Bulk()
 	for _, item := range custom {
 		centroid := make(map[string]float64)
@@ -355,7 +359,9 @@ func actionIntersection(ctx *cli.Context) {
 	defer file.Close()
 	decoder := getDecoder(file)
 
-	client, err := elastic.NewClient()
+	client, err := elastic.NewClient(
+		elastic.SetURL(common.AC.ElasticSearchHost),
+	)
 
 	if err != nil {
 		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
