@@ -10,7 +10,7 @@ func ReadConfig(filename string) {
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
-	err = json.Unmarshal(data, &C)
+	err = json.Unmarshal(data, &IC)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}

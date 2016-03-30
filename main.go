@@ -17,11 +17,18 @@ import (
 )
 
 var (
-	CitiesAndTowns, Roads []importer.JsonWay
-	Version               string = "dev"
-	configPath            string
-	indexSettingsPath     string
-	customDataPath        string
+	CitiesAndTowns, Roads   []importer.JsonWay
+	Version                 string = "dev"
+	configPath              string
+	indexSettingsPath       string
+	customDataPath          string
+	ElasticSearchIndexName  string
+	PGConnString            string
+	ElasticSearchHost       string
+	IndexType               string
+	FileName                string
+	DownloadUrl             string
+	DontImportIntersections bool
 )
 
 func getDecoder(file *os.File) *osmpbf.Decoder {
@@ -88,6 +95,54 @@ func main() {
 			Usage:       "Custom data file path",
 			Destination: &customDataPath,
 		},
+		cli.StringFlag{
+			Name:        "es_index_name",
+			Usage:       "Specify custom elasticsearch index name",
+			Value:       "addresses",
+			EnvVar:      "ARIADNA_ES_INDEX_NAME",
+			Destination: &ElasticSearchIndexName,
+		},
+		cli.StringFlag{
+			Name:        "es_pg_conn_url",
+			Usage:       "Specify custom PG connection URL",
+			Destination: &PGConnString,
+			Value:       "host=localhost user=geo password=geo dbname=geo sslmode=disable",
+			EnvVar:      "ARIADNA_PG_CONN_URL",
+		},
+		cli.StringFlag{
+			Name:        "es_url",
+			Usage:       "Custom url for elasticsearch e.g http://192.168.0.1:9200",
+			Destination: &ElasticSearchHost,
+			Value:       "http://localhost:9200",
+			EnvVar:      "ARIADNA_ES_HOST",
+		},
+		cli.StringFlag{
+			Name:        "es_index_type",
+			Usage:       "ElasticSearch index type",
+			Destination: &IndexType,
+			Value:       "address",
+			EnvVar:      "ARIADNA_INDEX_TYPE",
+		},
+		cli.StringFlag{
+			Name:        "filename",
+			Usage:       "filename for storing osm.pbf file",
+			Destination: &FileName,
+			Value:       "xxx",
+			EnvVar:      "ARIADNA_FILE_NAME",
+		},
+		cli.StringFlag{
+			Name:        "download_url",
+			Usage:       "Geofabrik url to download file",
+			Destination: &DownloadUrl,
+			Value:       "xxx",
+			EnvVar:      "ARIADNA_DOWNLOAD_URL",
+		},
+		cli.BoolFlag{
+			Name:        "dont_import_intersections",
+			Usage:       "if checked, then ariadna won't import intersections",
+			Destination: &DontImportIntersections,
+			EnvVar:      "ARIADNA_DONT_IMPORT_INTERSECTIONS",
+		},
 	}
 
 	app.Before = func(context *cli.Context) error {
@@ -110,6 +165,15 @@ func main() {
 }
 func actionImport(ctx *cli.Context) {
 	common.ReadConfig(configPath)
+	common.AC = common.AppConfig{
+		IndexType:               IndexType,
+		PGConnString:            PGConnString,
+		ElasticSearchHost:       ElasticSearchHost,
+		IndexName:               ElasticSearchIndexName,
+		FileName:                FileName,
+		DownloadUrl:             DownloadUrl,
+		DontImportIntersections: DontImportIntersections,
+	}
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
@@ -117,7 +181,7 @@ func actionImport(ctx *cli.Context) {
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
-	file := importer.OpenFile(common.C.FileName)
+	file := importer.OpenFile(common.AC.FileName)
 	defer file.Close()
 	decoder := getDecoder(file)
 
@@ -127,10 +191,10 @@ func actionImport(ctx *cli.Context) {
 		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
 
-	indexVersion := fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.IndexVersion+1)
-	common.C.CurrentIndex = indexVersion
-	importer.Logger.Info("Creating index with name %s", common.C.CurrentIndex)
-	_, err = client.CreateIndex(common.C.CurrentIndex).BodyString(string(indexSettings)).Do()
+	indexVersion := fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.IndexVersion+1)
+	common.IC.CurrentIndex = indexVersion
+	importer.Logger.Info("Creating index with name %s", common.IC.CurrentIndex)
+	_, err = client.CreateIndex(common.IC.CurrentIndex).BodyString(string(indexSettings)).Do()
 	if err != nil {
 		importer.Logger.Error(err.Error())
 	}
@@ -141,7 +205,7 @@ func actionImport(ctx *cli.Context) {
 
 	importer.Logger.Info("Cities, villages, towns and districts found")
 
-	file = importer.OpenFile(common.C.FileName)
+	file = importer.OpenFile(common.AC.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 
@@ -151,11 +215,11 @@ func actionImport(ctx *cli.Context) {
 	importer.Logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
 	importer.JsonNodesToEs(AddressNodes, CitiesAndTowns, client)
-	file = importer.OpenFile(common.C.FileName)
+	file = importer.OpenFile(common.AC.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 
-	if !common.C.DontImportIntersections {
+	if !common.AC.DontImportIntersections {
 		tags = importer.BuildTags("highway+name")
 		Roads, _ = importer.Run(decoder, db, tags)
 		importer.RoadsToPg(Roads)
@@ -163,9 +227,9 @@ func actionImport(ctx *cli.Context) {
 		Intersections := importer.GetRoadIntersectionsFromPG()
 		importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
 	}
-	common.C.LastIndexVersion = common.C.IndexVersion
-	common.C.IndexVersion += 1
-	data, err := json.Marshal(common.C)
+	common.IC.LastIndexVersion = common.IC.IndexVersion
+	common.IC.IndexVersion += 1
+	data, err := json.Marshal(common.IC)
 	if err != nil {
 		importer.Logger.Error("Failed to encode to json: %s", err)
 	}
@@ -175,27 +239,36 @@ func actionImport(ctx *cli.Context) {
 	}
 
 	_, err = client.Alias().
-		Remove(fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.LastIndexVersion), common.C.IndexName).
-		Add(common.C.CurrentIndex, common.C.IndexName).Do()
+		Remove(fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.LastIndexVersion), common.AC.IndexName).
+		Add(common.IC.CurrentIndex, common.AC.IndexName).Do()
 	if err != nil {
 		importer.Logger.Error("Failed to change aliases because of %s", err)
 		importer.Logger.Info("Creating index alias")
 		_, err = client.Alias().
-			Add(common.C.CurrentIndex, common.C.IndexName).Do()
+			Add(common.IC.CurrentIndex, common.AC.IndexName).Do()
 		if err != nil {
 			importer.Logger.Error("Failed to create index: %s", err)
 		}
 	}
-	_, err = client.DeleteIndex(fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.LastIndexVersion)).Do()
+	_, err = client.DeleteIndex(fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.LastIndexVersion)).Do()
 
 	if err != nil {
-		importer.Logger.Error("Failed to delete index %s: %s", common.C.LastIndexVersion, err)
+		importer.Logger.Error("Failed to delete index %s: %s", common.IC.LastIndexVersion, err)
 	}
 }
 
 func actionUpdate(ctx *cli.Context) {
 	common.ReadConfig(configPath)
-	err := updater.DownloadOSMFile(common.C.DownloadUrl, common.C.FileName)
+	common.AC = common.AppConfig{
+		IndexType:               IndexType,
+		PGConnString:            PGConnString,
+		ElasticSearchHost:       ElasticSearchHost,
+		IndexName:               ElasticSearchIndexName,
+		FileName:                FileName,
+		DownloadUrl:             DownloadUrl,
+		DontImportIntersections: DontImportIntersections,
+	}
+	err := updater.DownloadOSMFile(common.AC.DownloadUrl, common.AC.FileName)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
 	}
@@ -215,6 +288,15 @@ type CustomData struct {
 type Custom []CustomData
 
 func actionCustom(ctx *cli.Context) {
+	common.AC = common.AppConfig{
+		IndexType:               IndexType,
+		PGConnString:            PGConnString,
+		ElasticSearchHost:       ElasticSearchHost,
+		IndexName:               ElasticSearchIndexName,
+		FileName:                FileName,
+		DownloadUrl:             DownloadUrl,
+		DontImportIntersections: DontImportIntersections,
+	}
 	common.ReadConfig(configPath)
 	var custom Custom
 	data, err := ioutil.ReadFile(customDataPath)
@@ -225,6 +307,7 @@ func actionCustom(ctx *cli.Context) {
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
 	}
+	elastic.SetURL()
 	client, err := elastic.NewClient()
 	bulkClient := client.Bulk()
 	for _, item := range custom {
@@ -237,8 +320,8 @@ func actionCustom(ctx *cli.Context) {
 			Custom:   true,
 		}
 		index := elastic.NewBulkIndexRequest().
-			Index(common.C.CurrentIndex).
-			Type(common.C.IndexType).
+			Index(common.IC.CurrentIndex).
+			Type(common.AC.IndexType).
 			Id(strconv.FormatInt(item.ID, 10)).
 			Doc(marshall)
 		bulkClient = bulkClient.Add(index)
@@ -250,6 +333,16 @@ func actionCustom(ctx *cli.Context) {
 }
 
 func actionIntersection(ctx *cli.Context) {
+	common.AC = common.AppConfig{
+		IndexType:               IndexType,
+		PGConnString:            PGConnString,
+		ElasticSearchHost:       ElasticSearchHost,
+		IndexName:               ElasticSearchIndexName,
+		FileName:                FileName,
+		DownloadUrl:             DownloadUrl,
+		DontImportIntersections: DontImportIntersections,
+	}
+
 	common.ReadConfig(configPath)
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
@@ -258,7 +351,7 @@ func actionIntersection(ctx *cli.Context) {
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
-	file := importer.OpenFile(common.C.FileName)
+	file := importer.OpenFile(common.AC.FileName)
 	defer file.Close()
 	decoder := getDecoder(file)
 
@@ -268,10 +361,10 @@ func actionIntersection(ctx *cli.Context) {
 		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
 
-	indexVersion := fmt.Sprintf("%s_v%d", common.C.IndexName, common.C.IndexVersion)
-	common.C.CurrentIndex = indexVersion
-	importer.Logger.Info("Creating index with name %s", common.C.CurrentIndex)
-	_, err = client.CreateIndex(common.C.CurrentIndex).BodyString(string(indexSettings)).Do()
+	indexVersion := fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.IndexVersion)
+	common.IC.CurrentIndex = indexVersion
+	importer.Logger.Info("Creating index with name %s", common.IC.CurrentIndex)
+	_, err = client.CreateIndex(common.IC.CurrentIndex).BodyString(string(indexSettings)).Do()
 	if err != nil {
 		importer.Logger.Error(err.Error())
 	}
@@ -282,7 +375,7 @@ func actionIntersection(ctx *cli.Context) {
 
 	importer.Logger.Info("Cities, villages, towns and districts found")
 
-	file = importer.OpenFile(common.C.FileName)
+	file = importer.OpenFile(common.AC.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 

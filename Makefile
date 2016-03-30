@@ -12,4 +12,4 @@ build:
 	go build -v -o  $(TARGET) *.go
 
 fmt:
-	go fmt *.go
+	go fmt ./...

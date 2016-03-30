@@ -15,9 +15,9 @@ func BuildIndex(Roads []JsonWay) {
 		maxlat, minlat, maxlon, minlon := way.GetXY()
 
 		p := rtreego.Point{minlon, minlat}
-		if way.Tags["name"] == "Полярная"{
+		if way.Tags["name"] == "Полярная" {
 			fmt.Println(minlat, minlon)
-			fmt.Println(maxlat-minlat)
+			fmt.Println(maxlat - minlat)
 			fmt.Println(maxlon - minlon)
 		}
 		way.Rect, err = rtreego.NewRect(p, []float64{(maxlon - minlon), (maxlat - minlat)})

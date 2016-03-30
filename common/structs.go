@@ -1,16 +1,22 @@
 package common
 
-type Config struct {
-	IndexName               string `json:"index_name"`
-	PGConnString            string `json:"pg_conn_string"`
-	ElasticSearchHost	string `json:"elasticsearch_host"`
-	IndexType               string `json:"index_type"`
-	FileName                string `json:"file_name"`
-	DownloadUrl             string `json:"download_url"`
-	IndexVersion            int    `json:"index_version"`
-	CurrentIndex            string `json:"current_index"`
-	LastIndexVersion        int    `json:"last_index_version"`
-	DontImportIntersections bool   `json:"dont_import_intersections"`
+type IndexConfig struct {
+	IndexVersion     int    `json:"index_version"`
+	CurrentIndex     string `json:"current_index"`
+	LastIndexVersion int    `json:"last_index_version"`
 }
 
-var C Config
+var (
+	IC IndexConfig
+	AC AppConfig
+)
+
+type AppConfig struct {
+	IndexName               string
+	PGConnString            string
+	ElasticSearchHost       string
+	IndexType               string
+	FileName                string
+	DownloadUrl             string
+	DontImportIntersections bool
+}

@@ -8,7 +8,7 @@ import (
 )
 
 func RoadsToPg(Roads []JsonWay) {
-	pg_db, err := sql.Open("postgres", common.C.PGConnString)
+	pg_db, err := sql.Open("postgres", common.AC.PGConnString)
 	if err != nil {
 		Logger.Fatal(err.Error())
 	}
@@ -102,7 +102,7 @@ func RoadsToPg(Roads []JsonWay) {
 
 func GetRoadIntersectionsFromPG() []JsonNode {
 	var Nodes []JsonNode
-	pg_db, err := sql.Open("postgres", common.C.PGConnString)
+	pg_db, err := sql.Open("postgres", common.AC.PGConnString)
 	if err != nil {
 		Logger.Fatal(err.Error())
 	}
