@@ -1,8 +1,8 @@
 package web
 
 import (
-	"gopkg.in/olivere/elastic.v3"
 	"github.com/gen1us2k/ariadna/common"
+	"gopkg.in/olivere/elastic.v3"
 )
 
 var es *elastic.Client

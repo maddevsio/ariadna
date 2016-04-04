@@ -46,12 +46,12 @@ type Tags struct {
 }
 
 type JsonNode struct {
-	ID   int64             `json:"id"`
-	Type string            `json:"type"`
-	Lat  float64           `json:"lat"`
-	Lon  float64           `json:"lon"`
-	Tags map[string]string `json:"tags"`
-	Intersection bool `json:"-"`
+	ID           int64             `json:"id"`
+	Type         string            `json:"type"`
+	Lat          float64           `json:"lat"`
+	Lon          float64           `json:"lon"`
+	Tags         map[string]string `json:"tags"`
+	Intersection bool              `json:"-"`
 }
 
 type JsonRelation struct {

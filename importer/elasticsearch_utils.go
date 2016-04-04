@@ -176,7 +176,7 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 			Centroid:          centroid,
 			Geom:              nil,
 			Custom:            false,
-			Intersection: address.Intersection,
+			Intersection:      address.Intersection,
 		}
 
 		index := elastic.NewBulkIndexRequest().
