@@ -57,7 +57,7 @@ func SearchIntersections(Roads []JsonWay) []JsonNode {
 				for i, _ := range points {
 					tags := make(map[string]string)
 					tags["name"] = way.Tags["name"] + " " + way2.Tags["name"]
-					InterSection := JsonNode{way.ID + way2.ID, "node", points[i].Lat(), points[i].Lng(), tags}
+					InterSection := JsonNode{way.ID + way2.ID, "node", points[i].Lat(), points[i].Lng(), tags, true}
 					Intersections = append(Intersections, InterSection)
 				}
 			}

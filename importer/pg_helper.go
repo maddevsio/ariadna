@@ -118,7 +118,7 @@ func GetRoadIntersectionsFromPG() []JsonNode {
 		tags := make(map[string]string)
 		tags["name"] = node.Name
 		tags["old_name"] = node.OldName
-		jNode := JsonNode{node.ID, "node", node.Lat, node.Lng, tags}
+		jNode := JsonNode{node.ID, "node", node.Lat, node.Lng, tags, true}
 		Nodes = append(Nodes, jNode)
 	}
 	return Nodes

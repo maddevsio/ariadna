@@ -78,7 +78,7 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 }
 
 func onNode(node *osmpbf.Node) JsonNode {
-	marshall := JsonNode{node.ID, "node", node.Lat, node.Lon, node.Tags}
+	marshall := JsonNode{node.ID, "node", node.Lat, node.Lon, node.Tags, false}
 	return marshall
 }
 
