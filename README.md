@@ -148,6 +148,16 @@ There is http api for geocode and reverse geocode
 1. /api/search/:query
 2. /api/reverse/:lat/:lon
  
+### Docker
+To start Postgres, Elasticsearch and Ariadna run
+```
+$ cd ariadna-docker
+$ echo '{"index_version":1}' > config.json
+$ cp ../index.json.example ./index.json
+$ docker-compose up -d
+$ docker-compose run --rm ariadna /go/bin/ariadna update
+```
+Open http://localhost:8080 in your browser and enjoy
 
 ### TODO
 * Remove pg for searching intersections
