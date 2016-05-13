@@ -305,7 +305,10 @@ func actionTest(ctx *cli.Context) error {
 	return nil
 }
 func actionHttp(ctx *cli.Context) error{
-	web.StartServer()
+	err := web.StartServer()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
