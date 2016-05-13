@@ -1,14 +1,17 @@
 version: '2'
+
+
 services:
+
   ariadna:
     build:
       context: .
       dockerfile: Dockerfile-ariadna
     command: /go/bin/ariadna http
+    restart: always
     ports:
       - 8080:8080
     volumes:
-      - ./config.json:/go/src/github.com/gen1us2k/ariadna/config.json
       - ./index.json:/go/src/github.com/gen1us2k/ariadna/index.json
     depends_on:
       - ariadna-pg
@@ -38,6 +41,7 @@ services:
 
   ariadna-es:
     image: elasticsearch
+    restart: always
     ports:
       - 9200:9200
     networks:
