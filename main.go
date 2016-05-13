@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/gen1us2k/ariadna/common"
@@ -14,6 +13,9 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"time"
+	"encoding/json"
+	"strings"
 )
 
 var (
@@ -38,6 +40,19 @@ func getDecoder(file *os.File) *osmpbf.Decoder {
 		importer.Logger.Fatal(err.Error())
 	}
 	return decoder
+}
+
+func getCurrentIndexName(client *elastic.Client) (string, error) {
+	res, err := client.Aliases().Index("_all").Do()
+	if err != nil {
+		return "", err
+	}
+	for _, index := range res.IndicesByAlias(common.AC.IndexName){
+		if strings.Contains(index, common.AC.IndexName) {
+			return index, nil
+		}
+	}
+	return "", nil
 }
 
 func main() {
@@ -78,6 +93,12 @@ func main() {
 			Usage:   "Process intersections only",
 			Action:  actionIntersection,
 		},
+		{
+			Name:    "test",
+			Aliases: []string{"t"},
+			Usage:   "For testing",
+			Action:  actionTest,
+		},
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -113,7 +134,7 @@ func main() {
 			Name:        "es_url",
 			Usage:       "Custom url for elasticsearch e.g http://192.168.0.1:9200",
 			Destination: &ElasticSearchHost,
-			Value:       "http://localhost:9200",
+			Value:       "http://localhost:9200/",
 			EnvVar:      "ARIADNA_ES_HOST",
 		},
 		cli.StringFlag{
@@ -155,6 +176,15 @@ func main() {
 		if customDataPath == "" {
 			customDataPath = "custom.json"
 		}
+		common.AC = common.AppConfig{
+			IndexType:               IndexType,
+			PGConnString:            PGConnString,
+			ElasticSearchHost:       ElasticSearchHost,
+			IndexName:               ElasticSearchIndexName,
+			FileName:                FileName,
+			DownloadUrl:             DownloadUrl,
+			DontImportIntersections: DontImportIntersections,
+		}
 		return nil
 	}
 
@@ -163,17 +193,9 @@ func main() {
 	}
 
 }
-func actionImport(ctx *cli.Context) {
-	common.ReadConfig(configPath)
-	common.AC = common.AppConfig{
-		IndexType:               IndexType,
-		PGConnString:            PGConnString,
-		ElasticSearchHost:       ElasticSearchHost,
-		IndexName:               ElasticSearchIndexName,
-		FileName:                FileName,
-		DownloadUrl:             DownloadUrl,
-		DontImportIntersections: DontImportIntersections,
-	}
+
+func actionImport(ctx *cli.Context) error {
+
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
@@ -193,10 +215,12 @@ func actionImport(ctx *cli.Context) {
 		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
 
-	indexVersion := fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.IndexVersion+1)
-	common.IC.CurrentIndex = indexVersion
-	importer.Logger.Info("Creating index with name %s", common.IC.CurrentIndex)
-	_, err = client.CreateIndex(common.IC.CurrentIndex).BodyString(string(indexSettings)).Do()
+	indexVersion := fmt.Sprintf("%s_%d", common.AC.IndexName, time.Now().Unix())
+	importer.Logger.Info("Creating index with name %s", indexVersion)
+	_, err = client.CreateIndex(indexVersion).BodyString(string(indexSettings)).Do()
+
+	common.AC.ElasticSearchIndexUrl = indexVersion
+
 	if err != nil {
 		importer.Logger.Error(err.Error())
 	}
@@ -229,56 +253,60 @@ func actionImport(ctx *cli.Context) {
 		Intersections := importer.GetRoadIntersectionsFromPG()
 		importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
 	}
-	common.IC.LastIndexVersion = common.IC.IndexVersion
-	common.IC.IndexVersion += 1
-	data, err := json.Marshal(common.IC)
-	if err != nil {
-		importer.Logger.Error("Failed to encode to json: %s", err)
-	}
-	err = ioutil.WriteFile(configPath, data, 0644)
-	if err != nil {
-		importer.Logger.Error("Failed to write file %s", err)
-	}
 
-	_, err = client.Alias().
-		Remove(fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.LastIndexVersion), common.AC.IndexName).
-		Add(common.IC.CurrentIndex, common.AC.IndexName).Do()
+	importer.Logger.Info("Removing indices from alias")
+	_, err = client.Alias().Add(indexVersion, common.AC.IndexName).Do()
 	if err != nil {
-		importer.Logger.Error("Failed to change aliases because of %s", err)
-		importer.Logger.Info("Creating index alias")
-		_, err = client.Alias().
-			Add(common.IC.CurrentIndex, common.AC.IndexName).Do()
-		if err != nil {
-			importer.Logger.Error("Failed to create index: %s", err)
+		return err
+	}
+	res, err := client.Aliases().Index("_all").Do()
+	if err != nil {
+		return  err
+	}
+	for _, index := range res.IndicesByAlias(common.AC.IndexName){
+		if strings.Contains(index, common.AC.IndexName) && index != indexVersion {
+			_, err = client.Alias().Remove(index, common.AC.IndexName).Do()
+			if err != nil {
+				importer.Logger.Error("Failed to delete index alias: %s", err.Error())
+			}
+			_, err = client.DeleteIndex(index).Do()
+			if err != nil {
+				importer.Logger.Error("Failed to delete index: %s", err.Error())
+			}
 		}
 	}
-	_, err = client.DeleteIndex(fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.LastIndexVersion)).Do()
-
-	if err != nil {
-		importer.Logger.Error("Failed to delete index %s: %s", common.IC.LastIndexVersion, err)
-	}
+	return nil
 }
 
-func actionUpdate(ctx *cli.Context) {
-	common.ReadConfig(configPath)
-	common.AC = common.AppConfig{
-		IndexType:               IndexType,
-		PGConnString:            PGConnString,
-		ElasticSearchHost:       ElasticSearchHost,
-		IndexName:               ElasticSearchIndexName,
-		FileName:                FileName,
-		DownloadUrl:             DownloadUrl,
-		DontImportIntersections: DontImportIntersections,
-	}
+func actionUpdate(ctx *cli.Context) error {
 	err := updater.DownloadOSMFile(common.AC.DownloadUrl, common.AC.FileName)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
 	}
 	actionImport(ctx)
+	return nil
 }
 
-func actionHttp(ctx *cli.Context) {
+func actionTest(ctx *cli.Context) error {
+	fmt.Println("ggwp")
+	client, err := elastic.NewClient(
+		elastic.SetURL(common.AC.ElasticSearchHost),
+	)
+	if err != nil {
+		return err
+	}
+	currentIndex, err := getCurrentIndexName(client)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(currentIndex)
+	return nil
+}
+func actionHttp(ctx *cli.Context) error{
 	web.StartServer()
+	return nil
 }
 
 type CustomData struct {
@@ -289,17 +317,7 @@ type CustomData struct {
 }
 type Custom []CustomData
 
-func actionCustom(ctx *cli.Context) {
-	common.AC = common.AppConfig{
-		IndexType:               IndexType,
-		PGConnString:            PGConnString,
-		ElasticSearchHost:       ElasticSearchHost,
-		IndexName:               ElasticSearchIndexName,
-		FileName:                FileName,
-		DownloadUrl:             DownloadUrl,
-		DontImportIntersections: DontImportIntersections,
-	}
-	common.ReadConfig(configPath)
+func actionCustom(ctx *cli.Context) error {
 	var custom Custom
 	data, err := ioutil.ReadFile(customDataPath)
 	if err != nil {
@@ -314,6 +332,10 @@ func actionCustom(ctx *cli.Context) {
 		elastic.SetURL(common.AC.ElasticSearchHost),
 	)
 	bulkClient := client.Bulk()
+	indexVersion, err := getCurrentIndexName(client)
+	if err != nil {
+		return err
+	}
 	for _, item := range custom {
 		centroid := make(map[string]float64)
 		centroid["lat"] = item.Lat
@@ -324,7 +346,7 @@ func actionCustom(ctx *cli.Context) {
 			Custom:   true,
 		}
 		index := elastic.NewBulkIndexRequest().
-			Index(common.IC.CurrentIndex).
+			Index(indexVersion).
 			Type(common.AC.IndexType).
 			Id(strconv.FormatInt(item.ID, 10)).
 			Doc(marshall)
@@ -334,24 +356,10 @@ func actionCustom(ctx *cli.Context) {
 	if err != nil {
 		importer.Logger.Error(err.Error())
 	}
+	return nil
 }
 
-func actionIntersection(ctx *cli.Context) {
-	common.AC = common.AppConfig{
-		IndexType:               IndexType,
-		PGConnString:            PGConnString,
-		ElasticSearchHost:       ElasticSearchHost,
-		IndexName:               ElasticSearchIndexName,
-		FileName:                FileName,
-		DownloadUrl:             DownloadUrl,
-		DontImportIntersections: DontImportIntersections,
-	}
-
-	common.ReadConfig(configPath)
-	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
-	if err != nil {
-		importer.Logger.Fatal(err.Error())
-	}
+func actionIntersection(ctx *cli.Context) error {
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
 
@@ -367,13 +375,10 @@ func actionIntersection(ctx *cli.Context) {
 		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
 
-	indexVersion := fmt.Sprintf("%s_v%d", common.AC.IndexName, common.IC.IndexVersion)
-	common.IC.CurrentIndex = indexVersion
-	importer.Logger.Info("Creating index with name %s", common.IC.CurrentIndex)
-	_, err = client.CreateIndex(common.IC.CurrentIndex).BodyString(string(indexSettings)).Do()
-	if err != nil {
-		importer.Logger.Error(err.Error())
-	}
+	indexVersion, err := getCurrentIndexName(client)
+
+	common.AC.ElasticSearchIndexUrl = indexVersion
+	importer.Logger.Info("Creating index with name %s", common.AC.ElasticSearchIndexUrl )
 
 	importer.Logger.Info("Searching cities, villages, towns and districts")
 	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")
@@ -390,4 +395,5 @@ func actionIntersection(ctx *cli.Context) {
 	importer.BuildIndex(Roads)
 	Intersections := importer.SearchIntersections(Roads)
 	importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
+	return nil
 }

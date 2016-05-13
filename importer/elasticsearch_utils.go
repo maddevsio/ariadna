@@ -91,7 +91,7 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 			Custom:            false,
 		}
 		index := elastic.NewBulkIndexRequest().
-			Index(common.IC.CurrentIndex).
+			Index(common.AC.ElasticSearchIndexUrl).
 			Type(common.AC.IndexType).
 			Id(strconv.FormatInt(address.ID, 10)).
 			Doc(marshall)
@@ -180,7 +180,7 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 		}
 
 		index := elastic.NewBulkIndexRequest().
-			Index(common.IC.CurrentIndex).
+			Index(common.AC.ElasticSearchIndexUrl).
 			Type(common.AC.IndexType).
 			Id(strconv.FormatInt(address.ID, 10)).
 			Doc(marshall)
