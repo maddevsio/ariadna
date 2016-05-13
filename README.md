@@ -68,21 +68,6 @@ GLOBAL OPTIONS:
    --help, -h                                                                           show help
    --version, -v                                                                        print the version
 ```
-```
-cp config.json.example config.json
-```
-Specify your settings
-```
-{
-  "index_name": "addresses", # Name used for auto creating elastic search indexes
-  "index_type": "address", # Type of index data
-  "pg_conn_string": "host=localhost user=geo password=geo dbname=geo sslmode=disable", # PG connections settings
-  "download_url": "http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf", # Url where download osm.pbf data
-  "file_name": "kyrgyzstan-latest.osm.pbf", # destination file 
-  "index_version": "5", # Current index version
-  "http_bind_port": 8080 # not used yet
-}
-```
 Elastic search index settings
 ```
 cp index.json.example index.json
@@ -152,7 +137,6 @@ There is http api for geocode and reverse geocode
 To start Postgres, Elasticsearch and Ariadna run
 ```
 $ cd ariadna-docker
-$ echo '{"index_version":1}' > config.json
 $ cp ../index.json.example ./index.json
 $ docker-compose up -d
 $ docker-compose run --rm ariadna /go/bin/ariadna update
