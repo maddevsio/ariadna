@@ -11,6 +11,6 @@ type AppConfig struct {
 	IndexType               string
 	FileName                string
 	DownloadUrl             string
-	ElasticSearchIndexUrl             string
+	ElasticSearchIndexUrl   string
 	DontImportIntersections bool
 }

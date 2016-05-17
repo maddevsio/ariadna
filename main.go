@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/gen1us2k/ariadna/common"
@@ -13,9 +14,8 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"time"
-	"encoding/json"
 	"strings"
+	"time"
 )
 
 var (
@@ -47,8 +47,8 @@ func getCurrentIndexName(client *elastic.Client) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, index := range res.IndicesByAlias(common.AC.IndexName){
-		if strings.Contains(index, common.AC.IndexName) {
+	for _, index := range res.IndicesByAlias(common.AC.IndexName) {
+		if strings.HasPrefix(index, common.AC.IndexName) {
 			return index, nil
 		}
 	}
@@ -261,10 +261,10 @@ func actionImport(ctx *cli.Context) error {
 	}
 	res, err := client.Aliases().Index("_all").Do()
 	if err != nil {
-		return  err
+		return err
 	}
-	for _, index := range res.IndicesByAlias(common.AC.IndexName){
-		if strings.Contains(index, common.AC.IndexName) && index != indexVersion {
+	for _, index := range res.IndicesByAlias(common.AC.IndexName) {
+		if strings.HasPrefix(index, common.AC.IndexName) && index != indexVersion {
 			_, err = client.Alias().Remove(index, common.AC.IndexName).Do()
 			if err != nil {
 				importer.Logger.Error("Failed to delete index alias: %s", err.Error())
@@ -288,7 +288,6 @@ func actionUpdate(ctx *cli.Context) error {
 }
 
 func actionTest(ctx *cli.Context) error {
-	fmt.Println("ggwp")
 	client, err := elastic.NewClient(
 		elastic.SetURL(common.AC.ElasticSearchHost),
 	)
@@ -300,11 +299,10 @@ func actionTest(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	fmt.Println(currentIndex)
 	return nil
 }
-func actionHttp(ctx *cli.Context) error{
+func actionHttp(ctx *cli.Context) error {
 	err := web.StartServer()
 	if err != nil {
 		return err
@@ -381,7 +379,7 @@ func actionIntersection(ctx *cli.Context) error {
 	indexVersion, err := getCurrentIndexName(client)
 
 	common.AC.ElasticSearchIndexUrl = indexVersion
-	importer.Logger.Info("Creating index with name %s", common.AC.ElasticSearchIndexUrl )
+	importer.Logger.Info("Creating index with name %s", common.AC.ElasticSearchIndexUrl)
 
 	importer.Logger.Info("Searching cities, villages, towns and districts")
 	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")

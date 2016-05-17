@@ -1,10 +1,10 @@
 package web
 
 import (
-	"github.com/julienschmidt/httprouter"
-	"net/http"
-	"gopkg.in/olivere/elastic.v3"
 	"github.com/gen1us2k/ariadna/common"
+	"github.com/julienschmidt/httprouter"
+	"gopkg.in/olivere/elastic.v3"
+	"net/http"
 )
 
 var es *elastic.Client
