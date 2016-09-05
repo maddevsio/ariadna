@@ -3,7 +3,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gen1us2k/ariadna/importer"
+	"github.com/maddevsio/ariadna/importer"
 	"github.com/julienschmidt/httprouter"
 	"gopkg.in/olivere/elastic.v3"
 	"net/http"

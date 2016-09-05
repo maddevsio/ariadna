@@ -2,7 +2,7 @@ package importer
 
 import (
 	"fmt"
-	"github.com/gen1us2k/ariadna/common"
+	"github.com/maddevsio/ariadna/common"
 	"github.com/gen1us2k/go-translit"
 	"github.com/kellydunn/golang-geo"
 	gj "github.com/paulmach/go.geojson"

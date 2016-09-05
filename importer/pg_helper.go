@@ -3,7 +3,7 @@ package importer
 import (
 	"database/sql"
 	"fmt"
-	"github.com/gen1us2k/ariadna/common"
+	"github.com/maddevsio/ariadna/common"
 	"strconv"
 )
 

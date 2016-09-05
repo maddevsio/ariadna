@@ -1,7 +1,7 @@
 package updater
 
 import (
-	log "github.com/gen1us2k/ariadna/logger"
+	log "github.com/maddevsio/ariadna/logger"
 )
 
 var logger log.Logger

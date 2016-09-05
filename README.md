@@ -150,7 +150,7 @@ Open http://localhost:8080 in your browser and enjoy
 
 
 ### Contributing
-1. Fork it ( https://github.com/gen1us2k/ariadna/fork )
+1. Fork it ( https://github.com/maddevsio/ariadna/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)

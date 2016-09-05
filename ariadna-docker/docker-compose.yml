@@ -12,7 +12,7 @@ services:
     ports:
       - 8080:8080
     volumes:
-      - ./index.json:/go/src/github.com/gen1us2k/ariadna/index.json
+      - ./index.json:/go/src/github.com/maddevsio/ariadna/index.json
     depends_on:
       - ariadna-pg
       - ariadna-es
