@@ -119,7 +119,7 @@ Or you can specify download_url and file_name into settings and run
 ```
 $ ./ariadna update
 ```
-This creates elasticsearch index 
+This creates elasticsearch index
 
 ### WebUI
 ```
@@ -132,7 +132,7 @@ There is http api for geocode and reverse geocode
 
 1. /api/search/:query
 2. /api/reverse/:lat/:lon
- 
+
 ### Docker
 To start Postgres, Elasticsearch and Ariadna run
 ```
@@ -147,6 +147,14 @@ Open http://localhost:8080 in your browser and enjoy
 * Remove pg for searching intersections
 * Test search for other countries
 * Write some tests
+
+## Roadmap
+
+* Better code design
+* Drop postgres dependency for searching crossroads
+* Autocomplete
+* More intelligent memory usage
+* Add more sources for geocoding
 
 
 ### Contributing
