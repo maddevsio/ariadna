@@ -7,7 +7,7 @@ Is the open-source geocoder built on top of ElasticSearch for fast geocoding and
 
 Geocoding is the process of transforming input text, such as an address, or a name of a place—to a location on the earth's surface.
 
-![Ariadna](http://i.imgur.com/tT9rSun.gif)
+![Ariadna](https://i.imgur.com/tT9rSun.gif)
 
 
 It able to search:
@@ -23,7 +23,7 @@ It able to search:
 ### ... and a reverse geocoder, what's that?
 
 Reverse geocoding is the opposite, it transforms your current geographic location in to a list of places nearby.
-![Reverse](http://i.imgur.com/UHHlyFG.gif)
+![Reverse](https://i.imgur.com/UHHlyFG.gif)
 ### Prerequisites
 
 * ElasticSearch
