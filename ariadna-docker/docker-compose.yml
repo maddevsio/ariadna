@@ -1,6 +1,5 @@
 version: '2'
 
-
 services:
 
   ariadna:
@@ -20,22 +19,24 @@ services:
       - ARIADNA_ES_INDEX_NAME=addresses
       - ARIADNA_INDEX_TYPE=address
       - ARIADNA_PG_CONN_URL=host=ariadna-pg user=ariadna password=ariadna dbname=ariadna sslmode=disable
-      - ARIADNA_ES_HOST=http://ariadna-es:9200 
+      - ARIADNA_ES_HOST=http://ariadna-es:9200
       - ARIADNA_DOWNLOAD_URL=http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf
       - ARIADNA_FILE_NAME=kyrgyzstan-latest.osm.pbf
     networks:
       - ariadna-net
 
   ariadna-pg:
-    build:
-      context: .
-      dockerfile: Dockerfile-postgres
+    image: kartoza/postgis:9.6-2.4
     volumes:
       - ./postgis.sql:/docker-entrypoint-initdb.d/postgis.sql
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
     environment:
       - POSTGRES_USER=ariadna
       - POSTGRES_PASSWORD=ariadna
       - POSTGRES_DB=ariadna
+    container_name: ariadna-pg
     networks:
       - ariadna-net
 
@@ -44,8 +45,17 @@ services:
     restart: always
     ports:
       - 9200:9200
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    container_name: ariadna-es
     networks:
       - ariadna-net
+
+volumes:
+  esdata:
+    driver: local
+  pgdata:
+    driver: local
 
 networks:
   ariadna-net:
