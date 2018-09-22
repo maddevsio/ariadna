@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	log "github.com/maddevsio/ariadna/logger"
 )
 
 var (
@@ -33,11 +34,13 @@ var (
 	DontImportIntersections bool
 )
 
+var logger = log.L("main")
+
 func getDecoder(file *os.File) *osmpbf.Decoder {
 	decoder := osmpbf.NewDecoder(file)
 	err := decoder.Start(runtime.GOMAXPROCS(-1))
 	if err != nil {
-		importer.Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	return decoder
 }
@@ -189,7 +192,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		importer.Logger.Fatal("error on run app, %v", err)
+		logger.Fatal("error on run app, %v", err)
 	}
 
 }
@@ -198,7 +201,7 @@ func actionImport(ctx *cli.Context) error {
 
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
-		importer.Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
@@ -212,33 +215,33 @@ func actionImport(ctx *cli.Context) error {
 	)
 
 	if err != nil {
-		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
+		logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
 
 	indexVersion := fmt.Sprintf("%s_%d", common.AC.IndexName, time.Now().Unix())
-	importer.Logger.Info("Creating index with name %s", indexVersion)
+	logger.Info("Creating index with name %s", indexVersion)
 	_, err = client.CreateIndex(indexVersion).BodyString(string(indexSettings)).Do()
 
 	common.AC.ElasticSearchIndexUrl = indexVersion
 
 	if err != nil {
-		importer.Logger.Error(err.Error())
+		logger.Error(err.Error())
 	}
 
-	importer.Logger.Info("Searching cities, villages, towns and districts")
+	logger.Info("Searching cities, villages, towns and districts")
 	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")
 	CitiesAndTowns, _ = importer.Run(decoder, db, tags)
 
-	importer.Logger.Info("Cities, villages, towns and districts found")
+	logger.Info("Cities, villages, towns and districts found")
 
 	file = importer.OpenFile(common.AC.FileName)
 	defer file.Close()
 	decoder = getDecoder(file)
 
-	importer.Logger.Info("Searching addresses")
+	logger.Info("Searching addresses")
 	tags = importer.BuildTags("addr:street+addr:housenumber,amenity+name,building+name,addr:housenumber,shop+name,office+name,public_transport+name,cuisine+name,railway+name,sport+name,natural+name,tourism+name,leisure+name,historic+name,man_made+name,landuse+name,waterway+name,aerialway+name,aeroway+name,craft+name,military+name")
 	AddressWays, AddressNodes := importer.Run(decoder, db, tags)
-	importer.Logger.Info("Addresses found")
+	logger.Info("Addresses found")
 	importer.JsonWaysToES(AddressWays, CitiesAndTowns, client)
 	importer.JsonNodesToEs(AddressNodes, CitiesAndTowns, client)
 	file = importer.OpenFile(common.AC.FileName)
@@ -249,12 +252,12 @@ func actionImport(ctx *cli.Context) error {
 		tags = importer.BuildTags("highway+name")
 		Roads, _ = importer.Run(decoder, db, tags)
 		importer.RoadsToPg(Roads)
-		importer.Logger.Info("Searching all roads intersecitons")
+		logger.Info("Searching all roads intersecitons")
 		Intersections := importer.GetRoadIntersectionsFromPG()
 		importer.JsonNodesToEs(Intersections, CitiesAndTowns, client)
 	}
 
-	importer.Logger.Info("Removing indices from alias")
+	logger.Info("Removing indices from alias")
 	_, err = client.Alias().Add(indexVersion, common.AC.IndexName).Do()
 	if err != nil {
 		return err
@@ -267,11 +270,11 @@ func actionImport(ctx *cli.Context) error {
 		if strings.HasPrefix(index, common.AC.IndexName) && index != indexVersion {
 			_, err = client.Alias().Remove(index, common.AC.IndexName).Do()
 			if err != nil {
-				importer.Logger.Error("Failed to delete index alias: %s", err.Error())
+				logger.Error("Failed to delete index alias: %s", err.Error())
 			}
 			_, err = client.DeleteIndex(index).Do()
 			if err != nil {
-				importer.Logger.Error("Failed to delete index: %s", err.Error())
+				logger.Error("Failed to delete index: %s", err.Error())
 			}
 		}
 	}
@@ -281,7 +284,7 @@ func actionImport(ctx *cli.Context) error {
 func actionUpdate(ctx *cli.Context) error {
 	err := updater.DownloadOSMFile(common.AC.DownloadUrl, common.AC.FileName)
 	if err != nil {
-		importer.Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	actionImport(ctx)
 	return nil
@@ -322,11 +325,11 @@ func actionCustom(ctx *cli.Context) error {
 	var custom Custom
 	data, err := ioutil.ReadFile(customDataPath)
 	if err != nil {
-		importer.Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	err = json.Unmarshal(data, &custom)
 	if err != nil {
-		importer.Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 
 	client, err := elastic.NewClient(
@@ -355,7 +358,7 @@ func actionCustom(ctx *cli.Context) error {
 	}
 	_, err = bulkClient.Do()
 	if err != nil {
-		importer.Logger.Error(err.Error())
+		logger.Error(err.Error())
 	}
 	return nil
 }
@@ -373,19 +376,19 @@ func actionIntersection(ctx *cli.Context) error {
 	)
 
 	if err != nil {
-		importer.Logger.Fatal("Failed to create Elastic search client with error %s", err)
+		logger.Fatal("Failed to create Elastic search client with error %s", err)
 	}
 
 	indexVersion, err := getCurrentIndexName(client)
 
 	common.AC.ElasticSearchIndexUrl = indexVersion
-	importer.Logger.Info("Creating index with name %s", common.AC.ElasticSearchIndexUrl)
+	logger.Info("Creating index with name %s", common.AC.ElasticSearchIndexUrl)
 
-	importer.Logger.Info("Searching cities, villages, towns and districts")
+	logger.Info("Searching cities, villages, towns and districts")
 	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")
 	CitiesAndTowns, _ = importer.Run(decoder, db, tags)
 
-	importer.Logger.Info("Cities, villages, towns and districts found")
+	logger.Info("Cities, villages, towns and districts found")
 
 	file = importer.OpenFile(common.AC.FileName)
 	defer file.Close()

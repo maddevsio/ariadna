@@ -26,7 +26,7 @@ func BuildIndex(Roads []JsonWay) {
 		}
 		Index.Insert(&way)
 	}
-	Logger.Info("Index built")
+	logger.Info("Index built")
 	fmt.Println(Index.Size())
 }
 

@@ -10,17 +10,17 @@ import (
 func RoadsToPg(Roads []JsonWay) {
 	pg_db, err := sql.Open("postgres", common.AC.PGConnString)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	defer pg_db.Close()
 
 	_, err = pg_db.Query(`DROP TABLE IF EXISTS road;`)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	_, err = pg_db.Query(`DROP TABLE IF EXISTS road_intersection;`)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	_, err = pg_db.Query(`CREATE TABLE road (
 			id serial not null primary key,
@@ -30,7 +30,7 @@ func RoadsToPg(Roads []JsonWay) {
 			coords geometry
 		);`)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	_, err = pg_db.Query(`create table road_intersection (
 			id serial not null primary key,
@@ -41,14 +41,14 @@ func RoadsToPg(Roads []JsonWay) {
 		);`)
 
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 
-	Logger.Info("Creating tables")
-	Logger.Info("Started populating tables with many roads")
+	logger.Info("Creating tables")
+	logger.Info("Started populating tables with many roads")
 
 	const insQuery = `INSERT INTO road (node_id, name, old_name, coords) values($1, $2, $3, ST_GeomFromText($4));`
 	for _, road := range Roads {
@@ -75,7 +75,7 @@ func RoadsToPg(Roads []JsonWay) {
 
 		_, err = insert_query.Exec(road.ID, cleanAddress(name), cleanAddress(road.Tags["old_name"]), linestring)
 		if err != nil {
-			Logger.Fatal(err.Error())
+			logger.Fatal(err.Error())
 		}
 	}
 	searchQuery := `
@@ -91,11 +91,11 @@ func RoadsToPg(Roads []JsonWay) {
 			AND a.name != b.name
 		);
 	`
-	Logger.Info("Started searching intersections")
+	logger.Info("Started searching intersections")
 	_, err = pg_db.Query(searchQuery)
 
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 
 }
@@ -104,13 +104,13 @@ func GetRoadIntersectionsFromPG() []JsonNode {
 	var Nodes []JsonNode
 	pg_db, err := sql.Open("postgres", common.AC.PGConnString)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	defer pg_db.Close()
 	rows, err := pg_db.Query("SELECT node_id, name, old_name, st_x((st_dump(coords)).geom) as lng, st_y((st_dump(coords)).geom) as lat from road_intersection")
 
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	for rows.Next() {
 		var node PGNode

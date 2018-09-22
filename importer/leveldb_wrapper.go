@@ -13,7 +13,7 @@ func OpenLevelDB(path string) *leveldb.DB {
 	// try to open the db
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	return db
 }
@@ -41,7 +41,7 @@ func cacheQueue(batch *leveldb.Batch, node *osmpbf.Node) {
 func cacheFlush(db *leveldb.DB, batch *leveldb.Batch) {
 	err := db.Write(batch, nil)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	batch.Reset()
 }
@@ -55,7 +55,7 @@ func cacheLookup(db *leveldb.DB, way *osmpbf.Way) ([]map[string]string, error) {
 
 		data, err := db.Get([]byte(stringid), nil)
 		if err != nil {
-			Logger.Info(fmt.Sprintf("denormalize failed for way:", way.ID, "node not found:", stringid))
+			logger.Info(fmt.Sprintf("denormalize failed for way:", way.ID, "node not found:", stringid))
 			return container, err
 		}
 

@@ -4,8 +4,8 @@ import (
 	log "github.com/maddevsio/ariadna/logger"
 )
 
-var Logger log.Logger
+var logger log.Logger
 
 func init() {
-	Logger = log.L("importer")
+	logger = log.L("importer")
 }

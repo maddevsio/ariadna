@@ -19,7 +19,7 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 		if v, err := d.Decode(); err == io.EOF {
 			break
 		} else if err != nil {
-			Logger.Fatal(err.Error())
+			logger.Fatal(err.Error())
 		} else {
 			switch v := v.(type) {
 
@@ -69,7 +69,7 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 
 			default:
 
-				Logger.Fatal(fmt.Sprintf("unknown type %T\n", v))
+				logger.Fatal(fmt.Sprintf("unknown type %T\n", v))
 
 			}
 		}

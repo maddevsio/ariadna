@@ -45,8 +45,7 @@ func trimTags(tags map[string]string) map[string]string {
 
 // check if a tag list is empty or not
 func hasTags(tags map[string]string) bool {
-	n := len(tags)
-	if n == 0 {
+	if n := len(tags); n == 0 {
 		return false
 	}
 	return true
