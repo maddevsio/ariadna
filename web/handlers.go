@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/maddevsio/ariadna/importer"
 	"github.com/julienschmidt/httprouter"
 	"gopkg.in/olivere/elastic.v3"
@@ -43,7 +42,6 @@ func geoCoder(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	qs := elastic.NewGeoDistanceQuery("centroid")
-	fmt.Printf("Got %s and %s\n", ps.ByName("lat"), ps.ByName("lon"))
 	lat, _ := strconv.ParseFloat(ps.ByName("lat"), 64)
 	lon, _ := strconv.ParseFloat(ps.ByName("lon"), 64)
 	qs.GeoPoint(elastic.GeoPointFromLatLon(lat, lon))
@@ -63,8 +61,4 @@ func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	}
 	data, _ := json.Marshal(results)
 	w.Write(data)
-
-}
-func index(w http.ResponseWriter, r *http.Request) {
-
 }
