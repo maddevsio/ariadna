@@ -1,0 +1,23 @@
+language: go
+sudo: false
+go:
+  - 1.6.x
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - 1.10.x
+  - master
+
+install:
+  - go get -v github.com/qedus/osmpbf
+
+script:
+  - make init
+  - make race
+  - make cover
+  - make bench
+
+after_success:
+  - go get -u github.com/mattn/goveralls
+  - export PATH=$PATH:$HOME/gopath/bin
+  - goveralls -coverprofile=profile.cov -service=travis-ci

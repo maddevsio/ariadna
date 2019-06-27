@@ -1,0 +1,17 @@
+version: "3.7"
+
+networks:
+  esnet:
+
+services:
+  update:
+    build: .
+    image: ariadna
+    container_name: araidna-update
+    restart: always
+    command: ariadna update
+    environment:
+      - ARIADNA_ES_HOST=http://es01:9200
+      - ARIADNA_PG_CONN_URL=host=ariadna-pg user=ariadna password=ariadna dbname=ariadna sslmode=disable
+    networks:
+      - esnet

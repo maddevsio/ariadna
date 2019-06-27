@@ -1,14 +1,17 @@
 package importer
 
 import (
+	"context"
 	"fmt"
-	"github.com/maddevsio/ariadna/common"
-	"github.com/gen1us2k/go-translit"
-	"github.com/kellydunn/golang-geo"
-	gj "github.com/paulmach/go.geojson"
-	"gopkg.in/olivere/elastic.v3"
 	"strconv"
 	"strings"
+
+	"github.com/gen1us2k/go-translit"
+	"github.com/kellydunn/golang-geo"
+	"github.com/olivere/elastic"
+	gj "github.com/paulmach/go.geojson"
+
+	"github.com/maddevsio/ariadna/common"
 )
 
 func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic.Client) {
@@ -98,7 +101,7 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 		bulkClient = bulkClient.Add(index)
 	}
 	Logger.Info("Starting to insert many data to elasticsearch")
-	_, err := bulkClient.Do()
+	_, err := bulkClient.Do(context.Background())
 	Logger.Info("Data insert")
 	if err != nil {
 		Logger.Error(err.Error())
@@ -187,7 +190,7 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 		bulkClient = bulkClient.Add(index)
 	}
 	Logger.Info("Started to bulk insert to elasticsearch")
-	_, err := bulkClient.Do()
+	_, err := bulkClient.Do(context.Background())
 	Logger.Info("Data inserted")
 	if err != nil {
 		Logger.Error(err.Error())

@@ -39,8 +39,8 @@ Ariadna consists of 3 parts:
 
 
 ```
-  git clone git@github.com:gen1us2k/osm-geogoder.git
-  cd osm-geogoder
+  git clone git@github.com:maddevsio/ariadna.git
+  cd ariadna
   make depends
   make
 ```
@@ -136,10 +136,8 @@ There is http api for geocode and reverse geocode
 ### Docker
 To start Postgres, Elasticsearch and Ariadna run
 ```
-$ cd ariadna-docker
-$ cp ../index.json.example ./index.json
 $ docker-compose up -d
-$ docker-compose run --rm ariadna /go/bin/ariadna update
+$ docker-compose -f docker-compose-update.yml up -d update
 ```
 Open http://localhost:8080 in your browser and enjoy
 
@@ -170,5 +168,3 @@ You're welcome.
 
 ### NOTE
 Tested only for my city and my country.
-
-

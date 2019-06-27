@@ -1,0 +1,8 @@
+*.osm
+*.osm.bz2
+*.osm.pbf
+*.md5
+*.out
+*.test
+*.txt
+*.cov

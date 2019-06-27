@@ -18,22 +18,16 @@ func OpenLevelDB(path string) *leveldb.DB {
 	return db
 }
 
-func formatLevelDB(node *osmpbf.Node) (id string, val []byte) {
-
-	stringid := strconv.FormatInt(node.ID, 10)
+// queue a leveldb write in a batch
+func cacheQueue(batch *leveldb.Batch, node *osmpbf.Node) {
+	id := strconv.FormatInt(node.ID, 10)
 
 	var bufval bytes.Buffer
 	bufval.WriteString(strconv.FormatFloat(node.Lat, 'f', 16, 64))
 	bufval.WriteString(":")
 	bufval.WriteString(strconv.FormatFloat(node.Lon, 'f', 16, 64))
-	byteval := []byte(bufval.String())
+	val := []byte(bufval.String())
 
-	return stringid, byteval
-}
-
-// queue a leveldb write in a batch
-func cacheQueue(batch *leveldb.Batch, node *osmpbf.Node) {
-	id, val := formatLevelDB(node)
 	batch.Put([]byte(id), []byte(val))
 }
 

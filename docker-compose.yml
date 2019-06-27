@@ -1,0 +1,57 @@
+version: "3.7"
+
+volumes:
+  esdata01:
+    driver: local
+
+networks:
+  esnet:
+
+services:
+
+  ariadna:
+    build: .
+    image: ariadna
+    container_name: araidna
+    restart: always
+    depends_on:
+      - postgres
+      - es01
+    environment:
+      - ARIADNA_ES_INDEX_NAME=addresses
+      - ARIADNA_INDEX_TYPE=address
+      - ARIADNA_ES_HOST=http://es01:9200
+      - ARIADNA_PG_CONN_URL=host=ariadna-pg user=ariadna password=ariadna dbname=ariadna sslmode=disable
+    ports: ["8080:8080"]
+    networks: ["esnet"]
+
+  postgres:
+    build:
+      context: etc/postgres
+    image: ariadna-postgres
+    container_name: ariadna-pg
+    restart: always
+    volumes:
+     - ./etc/postgres/postgis.sql:/docker-entrypoint-initdb.d/postgis.sql
+    environment:
+      - POSTGRES_USER=ariadna
+      - POSTGRES_PASSWORD=ariadna
+      - POSTGRES_DB=ariadna
+    ports: ["5432:5432"]
+    networks: ["esnet"]
+
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.8.0
+    container_name: es01
+    restart: always
+    environment:
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks: ["esnet"]
+    ports: ["9200:9200", "9300:9300"]

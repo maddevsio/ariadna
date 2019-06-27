@@ -2,6 +2,7 @@ package importer
 
 import (
 	"fmt"
+
 	"github.com/dhconnelly/rtreego"
 	ggeo "github.com/paulmach/go.geo"
 )

@@ -6,7 +6,7 @@ clean:
 	rm -rf $(TARGET)
 
 depends:
-	go get -u -v
+	dep esure
 
 build:
 	go build -v -o  $(TARGET) *.go

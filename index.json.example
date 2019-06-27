@@ -107,15 +107,13 @@
             }
         }
     },
-    "mappings":
-        {"address":
-            {"properties":
-                {
-                    "centroid": {
-                        "type": "geo_point"
-                    }
-
+    "mappings": {
+        "address": {
+            "properties": {
+                "centroid": {
+                    "type": "geo_point"
                 }
             }
         }
+	}
 }

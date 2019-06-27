@@ -1,9 +1,10 @@
 package importer
 
 import (
-	"github.com/kellydunn/golang-geo"
 	"math"
 	"strconv"
+
+	"github.com/kellydunn/golang-geo"
 )
 
 func computeCentroid(latlons []map[string]string) map[string]string {
@@ -53,8 +54,5 @@ func getCentroid(ps []geo.Point) *geo.Point {
 	var lon = math.Atan2(Y, X)
 	var hyp = math.Sqrt(X*X + Y*Y)
 	var lat = math.Atan2(Z, hyp)
-
-	var centroid = geo.NewPoint(lat*fromRad, lon*fromRad)
-
-	return centroid
+	return geo.NewPoint(lat*fromRad, lon*fromRad)
 }

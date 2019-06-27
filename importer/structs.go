@@ -1,9 +1,10 @@
 package importer
 
 import (
+	"math"
+
 	"github.com/dhconnelly/rtreego"
 	"github.com/kellydunn/golang-geo"
-	"math"
 )
 
 type JsonWay struct {

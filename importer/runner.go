@@ -2,11 +2,12 @@ package importer
 
 import (
 	"fmt"
+	"io"
+	"strconv"
+
 	"github.com/kellydunn/golang-geo"
 	"github.com/qedus/osmpbf"
 	"github.com/syndtr/goleveldb/leveldb"
-	"io"
-	"strconv"
 )
 
 func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay, []JsonNode) {
@@ -14,7 +15,6 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 	var Nodes []JsonNode
 	batch := new(leveldb.Batch)
 
-	var nc, wc, rc uint64
 	for {
 		if v, err := d.Decode(); err == io.EOF {
 			break
@@ -24,7 +24,6 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 			switch v := v.(type) {
 
 			case *osmpbf.Node:
-				nc++
 				cacheQueue(batch, v)
 				if batch.Len() > 50000 {
 					cacheFlush(db, batch)
@@ -43,7 +42,6 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 				if batch.Len() > 1 {
 					cacheFlush(db, batch)
 				}
-				wc++
 
 				if !hasTags(v.Tags) {
 					break
@@ -55,8 +53,7 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 					if err != nil {
 						break
 					}
-					var centroid = computeCentroid(latlons)
-					way := onWay(v, latlons, centroid)
+					way := onWay(v, latlons, computeCentroid(latlons))
 					Ways = append(Ways, way)
 				}
 
@@ -65,12 +62,9 @@ func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay
 					break
 				}
 				v.Tags = trimTags(v.Tags)
-				rc++
 
 			default:
-
 				Logger.Fatal(fmt.Sprintf("unknown type %T\n", v))
-
 			}
 		}
 	}
@@ -96,5 +90,4 @@ func onWay(way *osmpbf.Way, latlons []map[string]string, centroid map[string]str
 		Centroid: centroid,
 		Nodes:    points}
 	return marshall
-
 }
