@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/maddevsio/ariadna/elastic"
 	"github.com/maddevsio/ariadna/osm"
 	"github.com/maddevsio/ariadna/parser"
 )
@@ -20,6 +21,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	c, err := elastic.New([]string{"http://localhost:9200"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(c.Conn.Info())
 	for nodeid, wayids := range h.InvertedIndex {
 
 		// uniqify wayids
