@@ -32,26 +32,6 @@ func (p *Parser) Parse(handler gosmparse.OSMReader) error {
 	return nil
 }
 
-// ParseFrom - execute parser, starting from offset
-func (p *Parser) ParseFrom(handler gosmparse.OSMReader, offset int64) error {
-	p.decoder.SeekToOffset(offset)
-	err := p.decoder.Parse(handler, true)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// ParseBlob - execute parser for a single blob
-func (p *Parser) ParseBlob(handler gosmparse.OSMReader, offset int64) error {
-	return p.decoder.ParseBlob(handler, offset)
-}
-
-// GetDecoder - return decoder object
-func (p *Parser) GetDecoder() *gosmparse.Decoder {
-	return p.decoder
-}
-
 // NewParser - Create a new parser for file at path
 func NewParser(path string) (*Parser, error) {
 	p := &Parser{}
