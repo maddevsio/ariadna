@@ -16,5 +16,6 @@ func TestConfig(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("ELASTIC_INDEX", "override")
 	c, err = Get()
+	require.NoError(t, err)
 	assert.Equal(t, "override", c.ElasticIndex)
 }

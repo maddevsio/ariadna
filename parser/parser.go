@@ -23,12 +23,6 @@ func (p *Parser) open(path string) error {
 	return nil
 }
 
-// Reset - reset (open+close) file
-func (p *Parser) Reset() {
-	p.file.Close()
-	p.open(p.file.Name())
-}
-
 // Parse - execute parser
 func (p *Parser) Parse(handler gosmparse.OSMReader) error {
 	err := p.decoder.Parse(handler, false)

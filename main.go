@@ -62,7 +62,8 @@ func main() {
 					log.Fatal(err)
 				}
 				node := h.Nodes[int64(id)]
-				// Point coordinates are in x, y order (easting, northing for projected coordinates, longitude, latitude for geographic coordinates):
+				// Point coordinates are in x, y order
+				// (easting, northing for projected coordinates, longitude, latitude for geographic coordinates)
 				geom := geojson.NewPointGeometry([]float64{node.Lon, node.Lat}) // https://geojson.org/geojson-spec.html#id9
 				raw, err := geom.MarshalJSON()
 				if err != nil {

@@ -18,6 +18,7 @@ type Handler struct {
 	Relations     map[int64]gosmparse.Relation
 	highWayTags   map[string]bool
 	placeTags     map[string]bool
+	addressTags   map[string]string
 }
 
 // New creates new instance of Handler
@@ -48,75 +49,45 @@ func New() *Handler {
 		"city":          false,
 		"village":       false,
 	}
+	h.addressTags = map[string]string{
+		"addr:street":      "addr:housenumber",
+		"amenity":          "name",
+		"building":         "name",
+		"addr:housenumber": "",
+		"shop":             "name",
+		"office":           "name",
+		"public_transport": "name",
+		"cuisine":          "name",
+		"railway":          "name",
+		"sport":            "name",
+		"natural":          "name",
+		"tourism":          "name",
+		"leisure":          "name",
+		"historic":         "name",
+		"man_made":         "name",
+		"landuse":          "name",
+		"waterway":         "name",
+		"aerialway":        "name",
+		"aeroway":          "name",
+		"craft":            "name",
+		"military":         "name",
+	}
+
 	return h
 }
 
 // ReadNode - called once per node
 func (h *Handler) ReadNode(item gosmparse.Node) {
 	h.mu.Lock()
-	if item.Tags["addr:street"] != "" && item.Tags["addr:housenumber"] != "" {
-
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["amenity"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["building"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["addr:housenumber"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["shop"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["office"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["public_transport"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["cuisine"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["railway"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["sport"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["natural"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["tourism"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["leisure"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["historic"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["man_made"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["landuse"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["waterway"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["aerialway"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["aeroway"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["craft"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
-	}
-	if item.Tags["military"] != "" && item.Tags["name"] != "" {
-		h.Nodes[item.ID] = item
+	for k, v := range h.addressTags {
+		if item.Tags[k] != "" {
+			if v == "" {
+				h.Nodes[item.ID] = item
+			}
+			if v != "" && item.Tags[v] != "" {
+				h.Nodes[item.ID] = item
+			}
+		}
 	}
 	h.mu.Unlock()
 }
@@ -125,71 +96,17 @@ func (h *Handler) ReadNode(item gosmparse.Node) {
 func (h *Handler) ReadWay(item gosmparse.Way) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	for k, v := range h.addressTags {
+		if item.Tags[k] != "" {
+			if v == "" {
+				h.Ways[item.ID] = item
+			}
+			if v != "" && item.Tags[v] != "" {
+				h.Ways[item.ID] = item
+			}
+		}
+	}
 
-	if item.Tags["addr:street"] != "" && item.Tags["addr:housenumber"] != "" {
-
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["amenity"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["building"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["addr:housenumber"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["shop"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["office"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["public_transport"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["cuisine"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["railway"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["sport"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["natural"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["tourism"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["leisure"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["historic"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["man_made"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["landuse"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["waterway"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["aerialway"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["aeroway"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["craft"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
-	if item.Tags["military"] != "" && item.Tags["name"] != "" {
-		h.Ways[item.ID] = item
-	}
 	if _, ok := h.highWayTags[item.Tags["highway"]]; !ok {
 		return
 	}
