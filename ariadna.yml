@@ -1,0 +1,5 @@
+---
+elastic_index: addresses
+elastic_urls:
+  - http://localhost:9200
+osm_filename: kyrgyzstan-latest.osm.pbf

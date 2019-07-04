@@ -1,18 +1,28 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/maddevsio/ariadna/config"
 	"github.com/maddevsio/ariadna/elastic"
+	"github.com/maddevsio/ariadna/model"
 	"github.com/maddevsio/ariadna/osm"
 	"github.com/maddevsio/ariadna/parser"
+	geojson "github.com/paulmach/go.geojson"
 )
 
 func main() {
-	p, err := parser.NewParser("kyrgyzstan-latest.osm.pbf")
+	c, err := config.Get()
+	if err != nil {
+		log.Fatal(err)
+	}
+	p, err := parser.NewParser(c.OSMFilename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -21,11 +31,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	c, err := elastic.New([]string{"http://localhost:9200"})
+	e, err := elastic.New(c)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(c.Conn.Info())
+	err = e.UpdateIndex()
+	if err != nil {
+		log.Fatal(err)
+	}
+	var buf bytes.Buffer
 	for nodeid, wayids := range h.InvertedIndex {
 
 		// uniqify wayids
@@ -43,18 +57,40 @@ func main() {
 			var uniqueNames = uniqString(names)
 			sort.Strings(uniqueNames)
 			if len(uniqueNames) > 1 {
-				fmt.Printf("http://openstreetmap.org/node/%-15v %v\n", nodeid, strings.Join(uniqueNames, " / "))
+				id, err := strconv.Atoi(nodeid)
+				if err != nil {
+					log.Fatal(err)
+				}
+				node := h.Nodes[int64(id)]
+				// Point coordinates are in x, y order (easting, northing for projected coordinates, longitude, latitude for geographic coordinates):
+				geom := geojson.NewPointGeometry([]float64{node.Lon, node.Lat}) // https://geojson.org/geojson-spec.html#id9
+				raw, err := geom.MarshalJSON()
+				if err != nil {
+					log.Fatal(err)
+				}
+				data, err := json.Marshal(model.Address{
+					Country:  "KG",
+					City:     "",
+					Village:  "",
+					Town:     "",
+					District: "",
+					Street:   strings.Join(uniqueNames, " "),
+					Shape:    raw,
+				})
+				if err != nil {
+					log.Fatal(err)
+				}
+				meta := []byte(fmt.Sprintf(`{ "index" : { "_id" : "%s" } }%s`, nodeid, "\n"))
+				data = append(data, "\n"...)
+				buf.Grow(len(meta) + len(data))
+				buf.Write(meta)
+				buf.Write(data)
 			}
 		}
 	}
-	for nodeID := range h.Nodes {
-		fmt.Println(nodeID)
-		//for _, member := range node.Members {
-		//	spew.Dump(h.Ways[member.ID])
-		//}
-	}
-	for nodeID := range h.Ways {
-		fmt.Println(nodeID)
+	err = e.BulkWrite(buf)
+	if err != nil {
+		log.Fatal(err)
 	}
 } // convenience func to uniq a set
 func uniqString(list []string) []string {
