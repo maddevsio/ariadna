@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/maddevsio/ariadna/config"
 	"github.com/maddevsio/ariadna/elastic"
@@ -15,6 +14,7 @@ import (
 	"github.com/maddevsio/ariadna/osm/handler"
 	"github.com/maddevsio/ariadna/osm/parser"
 	geojson "github.com/paulmach/go.geojson"
+	"golang.org/x/sync/errgroup"
 )
 
 // Importer struct represents needed values to import data to elasticsearch
@@ -23,7 +23,7 @@ type Importer struct {
 	parser  *parser.Parser
 	config  *config.Ariadna
 	e       *elastic.Client
-	wg      sync.WaitGroup
+	eg      errgroup.Group
 }
 
 // NewImporter creates new instance of importer
@@ -57,22 +57,20 @@ func (i *Importer) Start() error {
 	if err := i.updateIndices(); err != nil {
 		return err
 	}
-	i.wg.Add(1)
-	go i.crossRoadsToElastic()
+	i.eg.Go(i.crossRoadsToElastic)
 	return nil
 }
-
-// WaitStop is wrapper around waitgroup
-func (i *Importer) WaitStop() {
-	i.wg.Wait()
-}
 func (i *Importer) crossRoadsToElastic() error {
-	defer i.wg.Done()
 	buf, err := i.searchCrossRoads()
 	if err != nil {
 		return err
 	}
 	return i.e.BulkWrite(buf)
+}
+
+// WaitStop is wrapper around waitgroup
+func (i *Importer) WaitStop() {
+	i.eg.Wait()
 }
 func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 	var buf bytes.Buffer
