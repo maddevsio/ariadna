@@ -48,18 +48,6 @@ func (i *Importer) parse() error {
 func (i *Importer) updateIndices() error {
 	return i.e.UpdateIndex()
 }
-
-// Start starts parsing
-func (i *Importer) Start() error {
-	if err := i.parse(); err != nil {
-		return err
-	}
-	if err := i.updateIndices(); err != nil {
-		return err
-	}
-	i.eg.Go(i.crossRoadsToElastic)
-	return nil
-}
 func (i *Importer) crossRoadsToElastic() error {
 	buf, err := i.searchCrossRoads()
 	if err != nil {
@@ -68,10 +56,6 @@ func (i *Importer) crossRoadsToElastic() error {
 	return i.e.BulkWrite(buf)
 }
 
-// WaitStop is wrapper around waitgroup
-func (i *Importer) WaitStop() {
-	i.eg.Wait()
-}
 func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 	var buf bytes.Buffer
 	for nodeid, wayids := range i.handler.InvertedIndex {
@@ -118,6 +102,96 @@ func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 		}
 	}
 	return buf, nil
+}
+
+// Start starts parsing
+func (i *Importer) Start() error {
+	if err := i.parse(); err != nil {
+		return err
+	}
+	if err := i.updateIndices(); err != nil {
+		return err
+	}
+	i.eg.Go(i.crossRoadsToElastic)
+	i.eg.Go(i.nodesToElastic)
+	i.eg.Go(i.waysToElastic)
+	return nil
+}
+func (i *Importer) waysToElastic() error {
+	buf, err := i.getWays()
+	if err != nil {
+		return err
+	}
+	return i.e.BulkWrite(buf)
+}
+func (i *Importer) getWays() (bytes.Buffer, error) {
+	var buf bytes.Buffer
+	for wayID, node := range i.handler.Ways {
+		var coords [][]float64
+		for nodeID := range node.NodeIDs {
+			node := i.handler.Nodes[int64(nodeID)]
+			coords = append(coords, []float64{node.Lon, node.Lat})
+		}
+		geom := geojson.NewLineStringGeometry(coords)
+		shape, err := geom.MarshalJSON()
+		if err != nil {
+			return buf, err
+		}
+		data, err := json.Marshal(model.Address{
+			Country:     "KG",
+			Street:      node.Tags["addr:street"],
+			Name:        node.Tags["name"],
+			Shape:       shape,
+			HouseNumber: node.Tags["addr:housenumber"],
+		})
+		if err != nil {
+			return buf, err
+		}
+		meta := []byte(fmt.Sprintf(`{ "index": { "_id": "%d" } }%s`, wayID, "\n"))
+		data = append(data, "\n"...)
+		buf.Grow(len(meta) + len(data))
+		buf.Write(meta)
+		buf.Write(data)
+	}
+	return buf, nil
+}
+func (i *Importer) nodesToElastic() error {
+	buf, err := i.getNodes()
+	if err != nil {
+		return err
+	}
+	return i.e.BulkWrite(buf)
+}
+func (i *Importer) getNodes() (bytes.Buffer, error) {
+	var buf bytes.Buffer
+	for nodeID, node := range i.handler.Nodes {
+		geom := geojson.NewPointGeometry([]float64{node.Lon, node.Lat})
+		shape, err := geom.MarshalJSON()
+		if err != nil {
+			return buf, err
+		}
+		data, err := json.Marshal(model.Address{
+			Country:     "KG",
+			Street:      node.Tags["addr:street"],
+			Name:        node.Tags["name"],
+			Shape:       shape,
+			HouseNumber: node.Tags["addr:housenumber"],
+		})
+		if err != nil {
+			return buf, err
+		}
+		meta := []byte(fmt.Sprintf(`{ "index": { "_id": "%d" } }%s`, nodeID, "\n"))
+		data = append(data, "\n"...)
+		buf.Grow(len(meta) + len(data))
+		buf.Write(meta)
+		buf.Write(data)
+	}
+	return buf, nil
+}
+
+// WaitStop is wrapper around waitgroup
+func (i *Importer) WaitStop() {
+	i.eg.Wait()
 }
 func uniqString(list []string) []string {
 	uniqueSet := make(map[string]bool)
