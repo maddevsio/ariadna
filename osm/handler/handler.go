@@ -12,13 +12,16 @@ type Handler struct {
 	mu            *sync.Mutex
 	InvertedIndex map[string][]string
 	Nodes         map[int64]gosmparse.Node
+	FilteredNodes map[int64]gosmparse.Node
 	Ways          map[int64]gosmparse.Way
-	WayNames      map[string]string
-	Areas         map[int64]gosmparse.Relation
-	Relations     map[int64]gosmparse.Relation
-	highWayTags   map[string]bool
-	placeTags     map[string]bool
-	addressTags   map[string]string
+	FullWays      map[int64]gosmparse.Way
+
+	WayNames    map[string]string
+	Areas       map[int64]gosmparse.Relation
+	Countries   map[int64]gosmparse.Relation
+	highWayTags map[string]bool
+	placeTags   map[string]bool
+	addressTags map[string]string
 }
 
 // New creates new instance of Handler
@@ -26,10 +29,12 @@ func New() *Handler {
 	h := &Handler{
 		mu:            &sync.Mutex{},
 		Nodes:         make(map[int64]gosmparse.Node),
+		FilteredNodes: make(map[int64]gosmparse.Node),
 		Ways:          make(map[int64]gosmparse.Way),
+		FullWays:      make(map[int64]gosmparse.Way),
 		WayNames:      make(map[string]string),
-		Relations:     make(map[int64]gosmparse.Relation),
 		Areas:         make(map[int64]gosmparse.Relation),
+		Countries:     make(map[int64]gosmparse.Relation),
 		InvertedIndex: make(map[string][]string),
 	}
 	h.highWayTags = map[string]bool{
@@ -79,13 +84,14 @@ func New() *Handler {
 // ReadNode - called once per node
 func (h *Handler) ReadNode(item gosmparse.Node) {
 	h.mu.Lock()
+	h.Nodes[item.ID] = item
 	for k, v := range h.addressTags {
 		if item.Tags[k] != "" {
 			if v == "" {
-				h.Nodes[item.ID] = item
+				h.FilteredNodes[item.ID] = item
 			}
 			if v != "" && item.Tags[v] != "" {
-				h.Nodes[item.ID] = item
+				h.FilteredNodes[item.ID] = item
 			}
 		}
 	}
@@ -96,6 +102,7 @@ func (h *Handler) ReadNode(item gosmparse.Node) {
 func (h *Handler) ReadWay(item gosmparse.Way) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.FullWays[item.ID] = item
 	for k, v := range h.addressTags {
 		if item.Tags[k] != "" {
 			if v == "" {
@@ -135,7 +142,9 @@ func (h *Handler) ReadWay(item gosmparse.Way) {
 // ReadRelation - called once per relation
 func (h *Handler) ReadRelation(item gosmparse.Relation) {
 	h.mu.Lock()
-	h.Relations[item.ID] = item
+	if item.Tags["admin_level"] == "2" {
+		h.Countries[item.ID] = item
+	}
 	if _, ok := h.placeTags[item.Tags["place"]]; ok {
 		h.Areas[item.ID] = item
 	}

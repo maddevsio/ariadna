@@ -36,7 +36,7 @@ func (i *Importer) nodesToElastic() error {
 }
 func (i *Importer) getNodes() (bytes.Buffer, error) {
 	var buf bytes.Buffer
-	for nodeID, node := range i.handler.Nodes {
+	for nodeID, node := range i.handler.FilteredNodes {
 		data, err := i.nodeToJSON(node)
 		if err != nil {
 			return buf, err

@@ -47,13 +47,14 @@ func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 					return buf, err
 				}
 				data, err := json.Marshal(model.Address{
-					Country:  "KG",
-					City:     "",
-					Village:  "",
-					Town:     "",
-					District: "",
-					Street:   strings.Join(uniqueNames, " "),
-					Shape:    raw,
+					Country:      "KG",
+					City:         "",
+					Village:      "",
+					Town:         "",
+					District:     "",
+					Street:       strings.Join(uniqueNames, " "),
+					Shape:        raw,
+					Intersection: true,
 				})
 				if err != nil {
 					return buf, err
