@@ -20,4 +20,7 @@ func main() {
 		log.Fatal(err)
 	}
 	i.WaitStop()
+	if err := i.Done(); err != nil {
+		log.Fatal(err)
+	}
 }

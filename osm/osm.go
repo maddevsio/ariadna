@@ -81,6 +81,9 @@ func (i *Importer) Start() error {
 func (i *Importer) WaitStop() {
 	i.eg.Wait()
 }
+func (i *Importer) Done() error {
+	return i.e.DeleteIndices()
+}
 func uniqString(list []string) []string {
 	uniqueSet := make(map[string]bool)
 	for _, x := range list {
