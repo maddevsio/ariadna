@@ -30,22 +30,21 @@ func New(conf *config.Ariadna) (*Client, error) {
 	return &Client{conn: c, config: conf}, nil
 }
 func (c *Client) UpdateIndex() error {
-	indexName := fmt.Sprintf("%s-%d", c.config.ElasticIndex, time.Now().Unix())
-	res, err := c.conn.Indices.Create(indexName)
+	c.createdIndex = fmt.Sprintf("%s-%d", c.config.ElasticIndex, time.Now().Unix())
+	res, err := c.conn.Indices.Create(c.createdIndex)
 	if err != nil {
 		return err
 	}
 	if res.IsError() {
 		return fmt.Errorf("could not create index: %v", res)
 	}
-	res, err = c.conn.Indices.PutAlias([]string{indexName}, c.config.ElasticIndex)
+	res, err = c.conn.Indices.PutAlias([]string{c.createdIndex}, c.config.ElasticIndex)
 	if err != nil {
 		return err
 	}
 	if res.IsError() {
 		return fmt.Errorf("could not create alias: %v", res)
 	}
-	c.createdIndex = indexName
 	return nil
 }
 func (c *Client) DeleteIndices() error {
@@ -83,7 +82,7 @@ func (c *Client) DeleteIndices() error {
 }
 
 func (c *Client) BulkWrite(buf bytes.Buffer) error {
-	res, err := c.conn.Bulk(bytes.NewReader(buf.Bytes()), c.conn.Bulk.WithIndex(c.config.ElasticIndex))
+	res, err := c.conn.Bulk(bytes.NewReader(buf.Bytes()), c.conn.Bulk.WithIndex(c.createdIndex))
 	if err != nil {
 		return err
 	}
