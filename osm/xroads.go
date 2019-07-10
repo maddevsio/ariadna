@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	geo "github.com/kellydunn/golang-geo"
 	"github.com/maddevsio/ariadna/model"
 	geojson "github.com/paulmach/go.geojson"
 )
@@ -23,6 +24,12 @@ func (i *Importer) crossRoadsToElastic() error {
 
 func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 	var buf bytes.Buffer
+	replacer := strings.NewReplacer(
+		"улица", "",
+		"переулок", "",
+		"бульвар", "",
+		"проспект", "",
+	)
 	for nodeid, wayids := range i.handler.InvertedIndex {
 		uniqueWayIds := uniqString(wayids)
 		if len(uniqueWayIds) > 1 {
@@ -46,16 +53,53 @@ func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 				if err != nil {
 					return buf, err
 				}
-				data, err := json.Marshal(model.Address{
+				address := model.Address{
 					Country:      "KG",
-					City:         "",
-					Village:      "",
-					Town:         "",
-					District:     "",
-					Street:       strings.Join(uniqueNames, " "),
+					Name:         replacer.Replace(strings.Join(uniqueNames, " ")),
 					Shape:        raw,
 					Intersection: true,
-				})
+				}
+				for countryID := range i.countries {
+					country := i.countries[countryID]
+					var lat, lon float64
+					switch geom.Type {
+					case geojson.GeometryLineString:
+						lon = geom.LineString[0][0]
+						lat = geom.LineString[0][1]
+					case geojson.GeometryPoint:
+						lon = geom.Point[0]
+						lat = geom.Point[1]
+					default:
+						continue
+					}
+					point := geo.NewPoint(lat, lon)
+					if country.geom.Contains(point) {
+						address.Country = country.name
+					}
+					for townID := range country.towns {
+						town := country.towns[townID]
+						if town.geom.Contains(point) {
+							switch town.placeType {
+							case "city":
+								address.City = town.name
+							case "town":
+								address.Town = town.name
+							case "hamlet":
+								address.Village = town.name
+							case "village":
+								address.Village = town.name
+							}
+						}
+						for districtID := range town.districts {
+							district := town.districts[districtID]
+							if district.geom.Contains(point) {
+								address.District = district.name
+							}
+						}
+					}
+				}
+
+				data, err := json.Marshal(address)
 				if err != nil {
 					return buf, err
 				}

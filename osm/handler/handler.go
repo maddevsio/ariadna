@@ -16,12 +16,14 @@ type Handler struct {
 	Ways          map[int64]gosmparse.Way
 	FullWays      map[int64]gosmparse.Way
 
-	WayNames    map[string]string
-	Areas       map[int64]gosmparse.Relation
-	Countries   map[int64]gosmparse.Relation
-	highWayTags map[string]bool
-	placeTags   map[string]bool
-	addressTags map[string]string
+	WayNames     map[string]string
+	Areas        map[int64]gosmparse.Relation
+	Districts    map[int64]gosmparse.Way
+	Countries    map[int64]gosmparse.Relation
+	highWayTags  map[string]bool
+	areaTags     map[string]bool
+	districtTags map[string]bool
+	addressTags  map[string]string
 }
 
 // New creates new instance of Handler
@@ -34,6 +36,7 @@ func New() *Handler {
 		FullWays:      make(map[int64]gosmparse.Way),
 		WayNames:      make(map[string]string),
 		Areas:         make(map[int64]gosmparse.Relation),
+		Districts:     make(map[int64]gosmparse.Way),
 		Countries:     make(map[int64]gosmparse.Relation),
 		InvertedIndex: make(map[string][]string),
 	}
@@ -47,12 +50,15 @@ func New() *Handler {
 		"tertiary":    false,
 		"road":        false,
 	}
-	h.placeTags = map[string]bool{
+	h.areaTags = map[string]bool{
+		"town":    false,
+		"city":    false,
+		"village": false,
+		"hamlet":  false,
+	}
+	h.districtTags = map[string]bool{
 		"neighbourhood": false,
-		"town":          false,
 		"suburb":        false,
-		"city":          false,
-		"village":       false,
 	}
 	h.addressTags = map[string]string{
 		"addr:street":      "addr:housenumber",
@@ -102,6 +108,10 @@ func (h *Handler) ReadNode(item gosmparse.Node) {
 func (h *Handler) ReadWay(item gosmparse.Way) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	if _, ok := h.districtTags[item.Tags["place"]]; ok {
+		h.Districts[item.ID] = item
+	}
 	h.FullWays[item.ID] = item
 	for k, v := range h.addressTags {
 		if item.Tags[k] != "" {
@@ -125,14 +135,13 @@ func (h *Handler) ReadWay(item gosmparse.Way) {
 	// convert int64 to string
 	var wayIDString = strconv.FormatInt(item.ID, 10)
 
-	// get the best name from the tags
 	if val, ok := item.Tags["addr:street"]; ok {
 		h.WayNames[wayIDString] = val
 	} else if val, ok := item.Tags["name"]; ok {
 		h.WayNames[wayIDString] = val
 	} else {
 		return
-	} // store the way ids in an array with the nodeid as key
+	}
 	for _, nodeid := range item.NodeIDs {
 		var nodeIDString = strconv.FormatInt(nodeid, 10)
 		h.InvertedIndex[nodeIDString] = append(h.InvertedIndex[nodeIDString], wayIDString)
@@ -145,7 +154,7 @@ func (h *Handler) ReadRelation(item gosmparse.Relation) {
 	if item.Tags["admin_level"] == "2" {
 		h.Countries[item.ID] = item
 	}
-	if _, ok := h.placeTags[item.Tags["place"]]; ok {
+	if _, ok := h.areaTags[item.Tags["place"]]; ok {
 		h.Areas[item.ID] = item
 	}
 	h.mu.Unlock()

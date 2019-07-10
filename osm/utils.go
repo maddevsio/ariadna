@@ -57,7 +57,8 @@ func (i *Importer) marshalJSON(tags map[string]string, geom *geojson.Geometry) (
 			address.Street = strings.TrimSpace(strings.Replace(address.Street, "переулок", "", -1))
 		}
 	}
-	for name, country := range i.countries {
+	for countryID := range i.countries {
+		country := i.countries[countryID]
 		var lat, lon float64
 		switch geom.Type {
 		case geojson.GeometryLineString:
@@ -69,39 +70,32 @@ func (i *Importer) marshalJSON(tags map[string]string, geom *geojson.Geometry) (
 		default:
 			continue
 		}
-		if country.Contains(geo.NewPoint(lat, lon)) {
-			address.Country = name
+		point := geo.NewPoint(lat, lon)
+		if country.geom.Contains(point) {
+			address.Country = country.name
 		}
-	}
-	for key, area := range i.areas {
-		info := strings.Split(key, "+")
-		name := info[0]
-		place := info[1]
-		var lat, lon float64
-		switch geom.Type {
-		case geojson.GeometryLineString:
-			lon = geom.LineString[0][0]
-			lat = geom.LineString[0][1]
-		case geojson.GeometryPoint:
-			lon = geom.Point[0]
-			lat = geom.Point[1]
-		default:
-			continue
-		}
-		if area.Contains(geo.NewPoint(lat, lon)) {
-			switch place {
-			case "city":
-				address.City = name
-			case "town":
-				address.Town = name
-			case "suburb":
-				address.District = name
-			case "village":
-				address.Village = name
-			case "neighbourhood":
-				address.District = name
+		for townID := range country.towns {
+			town := country.towns[townID]
+			if town.geom.Contains(point) {
+				switch town.placeType {
+				case "city":
+					address.City = town.name
+				case "town":
+					address.Town = town.name
+				case "hamlet":
+					address.Village = town.name
+				case "village":
+					address.Village = town.name
+				}
+			}
+			for districtID := range town.districts {
+				district := town.districts[districtID]
+				if district.geom.Contains(point) {
+					address.District = district.name
+				}
 			}
 		}
+
 	}
 
 	return json.Marshal(address)

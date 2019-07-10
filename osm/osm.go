@@ -13,15 +13,31 @@ import (
 )
 
 // Importer struct represents needed values to import data to elasticsearch
-type Importer struct {
-	handler   *handler.Handler
-	parser    *parser.Parser
-	config    *config.Ariadna
-	e         *elastic.Client
-	eg        errgroup.Group
-	countries map[string]*geo.Polygon
-	areas     map[string]*geo.Polygon
-}
+type (
+	Importer struct {
+		handler   *handler.Handler
+		parser    *parser.Parser
+		config    *config.Ariadna
+		e         *elastic.Client
+		eg        errgroup.Group
+		countries []country
+	}
+	country struct {
+		name  string
+		towns []city
+		geom  *geo.Polygon
+	}
+	city struct {
+		name      string
+		placeType string
+		geom      *geo.Polygon
+		districts []district
+	}
+	district struct {
+		name string
+		geom *geo.Polygon
+	}
+)
 
 // NewImporter creates new instance of importer
 func NewImporter(c *config.Ariadna) (*Importer, error) {
@@ -37,8 +53,6 @@ func NewImporter(c *config.Ariadna) (*Importer, error) {
 	}
 	i.e = e
 	i.handler = handler.New()
-	i.countries = make(map[string]*geo.Polygon)
-	i.areas = make(map[string]*geo.Polygon)
 	return i, nil
 }
 func (i *Importer) parse() error {
@@ -79,11 +93,40 @@ func uniqString(list []string) []string {
 	return result
 }
 func (i *Importer) areasToPolygons() {
-	for _, area := range i.handler.Areas {
-		i.areas[fmt.Sprintf("%s+%s", area.Tags["name"], area.Tags["place"])] = i.relationToPolygon(area)
+	for _, cn := range i.handler.Countries {
+		countryPolygon := i.relationToPolygon(cn)
+		c := country{
+			name: cn.Tags["name"],
+			geom: countryPolygon,
+		}
+		for _, area := range i.handler.Areas {
+			areaPolygon := i.relationToPolygon(area)
+			city := city{
+				name:      area.Tags["name"],
+				geom:      areaPolygon,
+				placeType: area.Tags["place"],
+			}
+			for _, dist := range i.handler.Districts {
+				districtPolygon := i.wayToPolygon(dist)
+				if areaPolygon.Contains(districtPolygon.Points()[1]) {
+					d := district{name: dist.Tags["name"], geom: districtPolygon}
+					city.districts = append(city.districts, d)
+				}
+			}
+			if countryPolygon.Contains(areaPolygon.Points()[1]) {
+				c.towns = append(c.towns, city)
+			}
+
+		}
+		i.countries = append(i.countries, c)
+
 	}
-	for _, country := range i.handler.Countries {
-		i.countries[country.Tags["name"]] = i.relationToPolygon(country)
+	for _, c := range i.countries {
+		for _, town := range c.towns {
+			for _, district := range town.districts {
+				fmt.Printf("%s-%s-%s\n", c.name, town.name, district.name)
+			}
+		}
 	}
 }
 func (i *Importer) relationToPolygon(area gosmparse.Relation) *geo.Polygon {
@@ -101,6 +144,14 @@ func (i *Importer) relationToPolygon(area gosmparse.Relation) *geo.Polygon {
 			}
 		}
 
+	}
+	return geo.NewPolygon(points)
+}
+func (i *Importer) wayToPolygon(way gosmparse.Way) *geo.Polygon {
+	var points []*geo.Point
+	for _, nodeID := range way.NodeIDs {
+		node := i.handler.Nodes[nodeID]
+		points = append(points, geo.NewPoint(node.Lat, node.Lon))
 	}
 	return geo.NewPolygon(points)
 }
