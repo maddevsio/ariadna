@@ -2,12 +2,14 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/maddevsio/ariadna/config"
 	"github.com/maddevsio/ariadna/osm"
 )
 
 func main() {
+
 	c, err := config.Get()
 	if err != nil {
 		log.Fatal(err)
@@ -15,6 +17,9 @@ func main() {
 	i, err := osm.NewImporter(c)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if os.Args[1] == "web" {
+		i.StartWebServer()
 	}
 	if err := i.Start(); err != nil {
 		log.Fatal(err)

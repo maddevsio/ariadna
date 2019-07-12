@@ -2,7 +2,9 @@ package osm
 
 import (
 	"fmt"
+	"net/http"
 
+	"github.com/julienschmidt/httprouter"
 	geo "github.com/kellydunn/golang-geo"
 	"github.com/maddevsio/ariadna/config"
 	"github.com/maddevsio/ariadna/elastic"
@@ -157,4 +159,13 @@ func (i *Importer) wayToPolygon(way gosmparse.Way) *geo.Polygon {
 		points = append(points, geo.NewPoint(node.Lat, node.Lon))
 	}
 	return geo.NewPolygon(points)
+}
+
+func (i *Importer) StartWebServer() error {
+	router := httprouter.New()
+	router.GET("/api/search/:query", i.geoCodeHandler)
+	router.GET("/api/reverse/:lat/:lon", i.reverseGeoCodeHandler)
+	router.NotFound = http.FileServer(http.Dir("public"))
+	http.ListenAndServe(":8080", router)
+	return nil
 }

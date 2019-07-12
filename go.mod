@@ -12,6 +12,8 @@ require (
 	github.com/facebookgo/ensure v0.0.0-20160127193407-b4ab57deab51 // indirect
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/subset v0.0.0-20150612182917-8dac2c3c4870 // indirect
+	github.com/fortytw2/leaktest v1.3.0 // indirect
+	github.com/julienschmidt/httprouter v1.2.0
 	github.com/kellydunn/golang-geo v0.7.0
 	github.com/kylelemons/go-gypsy v0.0.0-20160905020020-08cad365cd28 // indirect
 	github.com/lib/pq v1.1.1 // indirect
@@ -21,5 +23,6 @@ require (
 	github.com/stretchr/testify v1.2.2
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4
+	gopkg.in/olivere/elastic.v3 v3.0.75
 	gotest.tools v2.2.0+incompatible
 )
