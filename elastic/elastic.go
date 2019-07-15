@@ -31,12 +31,23 @@ func New(conf *config.Ariadna) (*Client, error) {
 }
 func (c *Client) UpdateIndex() error {
 	c.createdIndex = fmt.Sprintf("%s-%d", c.config.ElasticIndex, time.Now().Unix())
-	res, err := c.conn.Indices.Create(c.createdIndex)
+	r := &esapi.IndicesCreateRequest{Index: c.createdIndex}
+	data := `
+{
+    "mappings": {
+			"properties": {
+				"shape": {"type":"geo_shape"},
+				"centroid":{"type":"geo_point"}
+			}
+    }
+}`
+	r.Body = bytes.NewReader([]byte(data))
+	res, err := r.Do(context.TODO(), c.conn.Transport)
 	if err != nil {
 		return err
 	}
 	if res.IsError() {
-		return fmt.Errorf("could not create index: %v", res)
+		return fmt.Errorf("could not update settings: %v", res)
 	}
 	res, err = c.conn.Indices.PutAlias([]string{c.createdIndex}, c.config.ElasticIndex)
 	if err != nil {

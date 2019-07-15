@@ -29,14 +29,10 @@ func (i *Importer) marshalJSON(tags map[string]string, geom *geojson.Geometry) (
 	var street = tags["addr:street"]
 	var name = tags["name"]
 	var houseNumber = tags["addr:housenumber"]
-	shape, err := geom.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
 	var address = model.Address{
 		Street:      street,
 		Name:        name,
-		Shape:       shape,
+		Shape:       geom,
 		HouseNumber: houseNumber,
 	}
 	if address.Street != "" {

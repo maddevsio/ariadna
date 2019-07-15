@@ -18,7 +18,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if os.Args[1] == "web" {
+	if len(os.Args) > 1 && os.Args[1] == "web" {
 		i.StartWebServer()
 	}
 	if err := i.Start(); err != nil {

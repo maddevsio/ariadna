@@ -3,9 +3,10 @@ package config
 import "github.com/spf13/viper"
 
 type Ariadna struct {
-	ElasticIndex string   `json:"elastic_index" mapstructure:"elastic_index"`
-	ElasticURLs  []string `json:"elastic_urls" mapstructure:"elastic_urls"`
-	OSMFilename  string   `json:"osm_filename" mapstructure:"osm_filename"`
+	ElasticIndex  string   `json:"elastic_index" mapstructure:"elastic_index"`
+	ElasticURLs   []string `json:"elastic_urls" mapstructure:"elastic_urls"`
+	OSMFilename   string   `json:"osm_filename" mapstructure:"osm_filename"`
+	IndexSettings string   `json:"index_settings" mapstructure:"index_settings"`
 }
 
 func Get() (*Ariadna, error) {

@@ -49,14 +49,10 @@ func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 				// Point coordinates are in x, y order
 				// (easting, northing for projected coordinates, longitude, latitude for geographic coordinates)
 				geom := geojson.NewPointGeometry([]float64{node.Lon, node.Lat}) // https://geojson.org/geojson-spec.html#id9
-				raw, err := geom.MarshalJSON()
-				if err != nil {
-					return buf, err
-				}
 				address := model.Address{
 					Country:      "KG",
 					Name:         replacer.Replace(strings.Join(uniqueNames, " ")),
-					Shape:        raw,
+					Shape:        geom,
 					Intersection: true,
 				}
 				for countryID := range i.countries {
