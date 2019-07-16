@@ -7,6 +7,7 @@ type Ariadna struct {
 	ElasticURLs   []string `json:"elastic_urls" mapstructure:"elastic_urls"`
 	OSMFilename   string   `json:"osm_filename" mapstructure:"osm_filename"`
 	IndexSettings string   `json:"index_settings" mapstructure:"index_settings"`
+	OSMURL        string   `json:"osm_url" mapstructure:"osm_url"`
 }
 
 func Get() (*Ariadna, error) {

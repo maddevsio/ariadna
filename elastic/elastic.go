@@ -36,8 +36,7 @@ func (c *Client) UpdateIndex() error {
 {
     "mappings": {
 			"properties": {
-				"shape": {"type":"geo_shape"},
-				"centroid":{"type":"geo_point"}
+				"location": {"type":"geo_point"}
 			}
     }
 }`

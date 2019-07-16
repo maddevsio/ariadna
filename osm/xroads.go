@@ -10,7 +10,6 @@ import (
 
 	geo "github.com/kellydunn/golang-geo"
 	"github.com/maddevsio/ariadna/model"
-	geojson "github.com/paulmach/go.geojson"
 )
 
 func (i *Importer) crossRoadsToElastic() error {
@@ -46,28 +45,16 @@ func (i *Importer) searchCrossRoads() (bytes.Buffer, error) {
 					return buf, err
 				}
 				node := i.handler.Nodes[int64(id)]
-				// Point coordinates are in x, y order
-				// (easting, northing for projected coordinates, longitude, latitude for geographic coordinates)
-				geom := geojson.NewPointGeometry([]float64{node.Lon, node.Lat}) // https://geojson.org/geojson-spec.html#id9
 				address := model.Address{
 					Country:      "KG",
 					Name:         replacer.Replace(strings.Join(uniqueNames, " ")),
-					Shape:        geom,
+					Location:     model.Location{Lat: node.Lat, Lon: node.Lon},
 					Intersection: true,
 				}
 				for countryID := range i.countries {
 					country := i.countries[countryID]
-					var lat, lon float64
-					switch geom.Type {
-					case geojson.GeometryLineString:
-						lon = geom.LineString[0][0]
-						lat = geom.LineString[0][1]
-					case geojson.GeometryPoint:
-						lon = geom.Point[0]
-						lat = geom.Point[1]
-					default:
-						continue
-					}
+					lat := address.Location.Lat
+					lon := address.Location.Lon
 					point := geo.NewPoint(lat, lon)
 					if country.geom.Contains(point) {
 						address.Country = country.name

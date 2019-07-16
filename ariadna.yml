@@ -3,4 +3,6 @@ elastic_index: addresses
 elastic_urls:
   - http://localhost:9200
 osm_filename: kyrgyzstan-latest.osm.pbf
+osm_url: http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf
 index_settings: index.json
+

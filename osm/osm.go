@@ -44,6 +44,9 @@ type (
 // NewImporter creates new instance of importer
 func NewImporter(c *config.Ariadna) (*Importer, error) {
 	i := &Importer{config: c}
+	if err := i.download(); err != nil {
+		return nil, err
+	}
 	p, err := parser.NewParser(c.OSMFilename)
 	if err != nil {
 		return nil, err

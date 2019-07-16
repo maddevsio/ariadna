@@ -7,7 +7,6 @@ import (
 	geo "github.com/kellydunn/golang-geo"
 	"github.com/maddevsio/ariadna/model"
 	"github.com/missinglink/gosmparse"
-	geojson "github.com/paulmach/go.geojson"
 )
 
 func (i *Importer) wayToJSON(way gosmparse.Way) ([]byte, error) {
@@ -16,23 +15,28 @@ func (i *Importer) wayToJSON(way gosmparse.Way) ([]byte, error) {
 		node := i.handler.Nodes[nodeID]
 		coords = append(coords, []float64{node.Lon, node.Lat})
 	}
-	geom := geojson.NewLineStringGeometry(coords)
-	return i.marshalJSON(way.Tags, geom)
+	x := 0.0
+	y := 0.0
+	numPoints := float64(len(coords))
+	for _, point := range coords {
+		x += point[0]
+		y += point[1]
+	}
+	return i.marshalJSON(way.Tags, model.Location{Lat: y / numPoints, Lon: x / numPoints})
 }
 
 func (i *Importer) nodeToJSON(node gosmparse.Node) ([]byte, error) {
-	geom := geojson.NewPointGeometry([]float64{node.Lon, node.Lat})
-	return i.marshalJSON(node.Tags, geom)
+	return i.marshalJSON(node.Tags, model.Location{Lat: node.Lat, Lon: node.Lon})
 }
 
-func (i *Importer) marshalJSON(tags map[string]string, geom *geojson.Geometry) ([]byte, error) {
+func (i *Importer) marshalJSON(tags map[string]string, location model.Location) ([]byte, error) {
 	var street = tags["addr:street"]
 	var name = tags["name"]
 	var houseNumber = tags["addr:housenumber"]
 	var address = model.Address{
 		Street:      street,
 		Name:        name,
-		Shape:       geom,
+		Location:    location,
 		HouseNumber: houseNumber,
 	}
 	if address.Street != "" {
@@ -55,18 +59,7 @@ func (i *Importer) marshalJSON(tags map[string]string, geom *geojson.Geometry) (
 	}
 	for countryID := range i.countries {
 		country := i.countries[countryID]
-		var lat, lon float64
-		switch geom.Type {
-		case geojson.GeometryLineString:
-			lon = geom.LineString[0][0]
-			lat = geom.LineString[0][1]
-		case geojson.GeometryPoint:
-			lon = geom.Point[0]
-			lat = geom.Point[1]
-		default:
-			continue
-		}
-		point := geo.NewPoint(lat, lon)
+		point := geo.NewPoint(address.Location.Lat, address.Location.Lon)
 		if country.geom.Contains(point) {
 			address.Country = country.name
 		}
