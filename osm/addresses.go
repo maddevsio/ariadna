@@ -6,10 +6,12 @@ import (
 )
 
 func (i *Importer) waysToElastic() error {
+	i.logger.Info("started to search ways")
 	buf, err := i.getWays()
 	if err != nil {
 		return err
 	}
+	i.logger.Info("ways found")
 	return i.e.BulkWrite(buf)
 }
 func (i *Importer) getWays() (bytes.Buffer, error) {
@@ -28,10 +30,12 @@ func (i *Importer) getWays() (bytes.Buffer, error) {
 	return buf, nil
 }
 func (i *Importer) nodesToElastic() error {
+	i.logger.Info("started to search nodes")
 	buf, err := i.getNodes()
 	if err != nil {
 		return err
 	}
+	i.logger.Info("nodes searched")
 	return i.e.BulkWrite(buf)
 }
 func (i *Importer) getNodes() (bytes.Buffer, error) {

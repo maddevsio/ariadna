@@ -8,6 +8,7 @@ type Ariadna struct {
 	OSMFilename   string   `json:"osm_filename" mapstructure:"osm_filename"`
 	IndexSettings string   `json:"index_settings" mapstructure:"index_settings"`
 	OSMURL        string   `json:"osm_url" mapstructure:"osm_url"`
+	ImportCountry string   `json:"import_country" mapstructure:"import_country"`
 }
 
 func Get() (*Ariadna, error) {

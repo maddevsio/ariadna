@@ -2,7 +2,9 @@ package osm
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/julienschmidt/httprouter"
 	geo "github.com/kellydunn/golang-geo"
@@ -11,6 +13,7 @@ import (
 	"github.com/maddevsio/ariadna/osm/handler"
 	"github.com/maddevsio/ariadna/osm/parser"
 	"github.com/missinglink/gosmparse"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -22,6 +25,7 @@ type (
 		config    *config.Ariadna
 		e         *elastic.Client
 		eg        errgroup.Group
+		logger    *logrus.Logger
 		countries []country
 	}
 	country struct {
@@ -43,7 +47,7 @@ type (
 
 // NewImporter creates new instance of importer
 func NewImporter(c *config.Ariadna) (*Importer, error) {
-	i := &Importer{config: c}
+	i := &Importer{config: c, logger: logrus.New()}
 	if err := i.download(); err != nil {
 		return nil, err
 	}
@@ -58,6 +62,7 @@ func NewImporter(c *config.Ariadna) (*Importer, error) {
 	}
 	i.e = e
 	i.handler = handler.New()
+	i.logger.Info("parser initialized")
 	return i, nil
 }
 func (i *Importer) parse() error {
@@ -101,8 +106,21 @@ func uniqString(list []string) []string {
 	return result
 }
 func (i *Importer) areasToPolygons() {
+	i.logger.Info("started to build country index")
 	for _, cn := range i.handler.Countries {
+		if cn.Tags["name"] != i.config.ImportCountry {
+			continue
+		}
 		countryPolygon := i.relationToPolygon(cn)
+
+		f, err := os.Create(cn.Tags["name"])
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, point := range countryPolygon.Points() {
+			f.Write([]byte(fmt.Sprintf("%v,%v\n", point.Lng(), point.Lat())))
+		}
+		f.Close()
 		c := country{
 			name: cn.Tags["name"],
 			geom: countryPolygon,
@@ -129,13 +147,7 @@ func (i *Importer) areasToPolygons() {
 		i.countries = append(i.countries, c)
 
 	}
-	for _, c := range i.countries {
-		for _, town := range c.towns {
-			for _, district := range town.districts {
-				fmt.Printf("%s-%s-%s\n", c.name, town.name, district.name)
-			}
-		}
-	}
+	i.logger.Info("finished to build country index")
 }
 func (i *Importer) relationToPolygon(area gosmparse.Relation) *geo.Polygon {
 	var points []*geo.Point

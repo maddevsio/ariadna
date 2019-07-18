@@ -5,4 +5,4 @@ elastic_urls:
 osm_filename: kyrgyzstan-latest.osm.pbf
 osm_url: http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf
 index_settings: index.json
-
+import_country: Кыргызстан

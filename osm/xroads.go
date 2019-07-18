@@ -13,11 +13,12 @@ import (
 )
 
 func (i *Importer) crossRoadsToElastic() error {
-
+	i.logger.Info("started to search crossroads")
 	buf, err := i.searchCrossRoads()
 	if err != nil {
 		return err
 	}
+	i.logger.Info("crossroads found")
 	return i.e.BulkWrite(buf)
 }
 

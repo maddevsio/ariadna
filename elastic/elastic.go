@@ -12,12 +12,14 @@ import (
 	es "github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/maddevsio/ariadna/config"
+	"github.com/sirupsen/logrus"
 )
 
 type Client struct {
 	conn         *es.Client
 	config       *config.Ariadna
 	createdIndex string
+	logger       *logrus.Logger
 }
 
 func New(conf *config.Ariadna) (*Client, error) {
@@ -27,7 +29,7 @@ func New(conf *config.Ariadna) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{conn: c, config: conf}, nil
+	return &Client{conn: c, config: conf, logger: logrus.New()}, nil
 }
 func (c *Client) UpdateIndex() error {
 	c.createdIndex = fmt.Sprintf("%s-%d", c.config.ElasticIndex, time.Now().Unix())
@@ -48,6 +50,7 @@ func (c *Client) UpdateIndex() error {
 	if res.IsError() {
 		return fmt.Errorf("could not update settings: %v", res)
 	}
+	c.logger.Infof("created index %s", c.createdIndex)
 	res, err = c.conn.Indices.PutAlias([]string{c.createdIndex}, c.config.ElasticIndex)
 	if err != nil {
 		return err
@@ -55,6 +58,7 @@ func (c *Client) UpdateIndex() error {
 	if res.IsError() {
 		return fmt.Errorf("could not create alias: %v", res)
 	}
+	c.logger.Info("alias was created")
 	return nil
 }
 func (c *Client) DeleteIndices() error {
@@ -88,6 +92,7 @@ func (c *Client) DeleteIndices() error {
 	if res.IsError() {
 		return fmt.Errorf("could not delete indices: %v", res)
 	}
+	c.logger.Infof("deleted indices: %v", indicesToDelete)
 	return nil
 }
 
@@ -99,5 +104,6 @@ func (c *Client) BulkWrite(buf bytes.Buffer) error {
 	if res.IsError() {
 		return fmt.Errorf("could not perform bulk insert: %v", res)
 	}
+	c.logger.Info("bulk insert is finished")
 	return nil
 }

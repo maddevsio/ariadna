@@ -7,6 +7,7 @@ import (
 )
 
 func (i *Importer) download() error {
+	i.logger.Infof("downloading %s", i.config.OSMURL)
 	resp, err := http.Get(i.config.OSMURL)
 	if err != nil {
 		return err
