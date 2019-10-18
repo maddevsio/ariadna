@@ -40,7 +40,7 @@ services:
       - ariadna-net
 
   ariadna-es:
-    image: elasticsearch
+    image: elasticsearch:7.4.0
     restart: always
     ports:
       - 9200:9200
