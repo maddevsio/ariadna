@@ -1,9 +1,10 @@
-$(function() {
+$(function () {
     $('#map').css('height', $(window).height() - 80);
-    var Ariadna = function() {};
+    var Ariadna = function () {
+    };
 
     Ariadna.prototype = {
-        init: function() {
+        init: function () {
             this.markers = [];
             this._map = L.map('map').setView(['42.878983', '74.587555'], 12);
 
@@ -14,13 +15,13 @@ $(function() {
             }).addTo(this._map);
             this.init_listeners();
         },
-        add_marker: function(item){
-               this.clear_map();
-               var marker = L.marker([item.centroid.lat, item.centroid.lon]).addTo(this._map);
-               this.markers.push(marker);
-               this._map.setView(new L.LatLng(item.centroid.lat, item.centroid.lon), 17)
+        add_marker: function (item) {
+            this.clear_map();
+            var marker = L.marker([item.location.lat, item.location.lon]).addTo(this._map);
+            this.markers.push(marker);
+            this._map.setView(new L.LatLng(item.location.lat, item.location.lon), 17)
         },
-        clear_map: function() {
+        clear_map: function () {
             for (var i = 0; i < this.markers.length; i++) {
                 if (this.markers[i]) {
                     this.markers[i].closePopup();
@@ -30,9 +31,9 @@ $(function() {
                 delete this.markers[i];
             }
         },
-        init_listeners: function() {
+        init_listeners: function () {
             var _this = this;
-            $('.search-form').on('submit', function(e){
+            $('.search-form').on('submit', function (e) {
                 e.preventDefault();
                 var address = $('.search-form input').val();
                 $.ajax({
@@ -40,13 +41,13 @@ $(function() {
                     type: 'GET',
                     dataType: 'json',
                     contentType: 'application/json',
-                    success: function(response) {
+                    success: function (response) {
                         _this.add_marker(response[0]);
 
                     }
                 });
             })
-            this._map.on('click', function(e){
+            this._map.on('click', function (e) {
                 _this.clear_map();
                 var marker = new L.marker(e.latlng).addTo(_this._map);
                 _this.markers.push(marker);
@@ -55,7 +56,7 @@ $(function() {
                     type: 'GET',
                     dataType: 'json',
                     contentType: 'application/json',
-                    success: function(response) {
+                    success: function (response) {
                         var name = response[0].name
                         if (name === "") {
                             name = response[0].street + ' ' + response[0].housenumber
