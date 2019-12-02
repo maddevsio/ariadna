@@ -39,6 +39,21 @@ go get -u github.com/maddevsio/ariadna
  go run main.go
  ```
 
+### Configuration
+
+You can use json or yaml files for configuration. Configuration example shown below. 
+
+```
+cat ariadna.yml
+---                                                                                                                           elastic_index: addresses # index name for elasticsearch
+elastic_urls:
+  - http://localhost:9200   # array of elasticsearch addresses
+osm_filename: kyrgyzstan-latest.osm.pbf # temporary filename for osm.pbf file downloaded from geofabrik        
+osm_url: http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf  # Download url for osm.pdf file
+index_settings: index.json   # Settings for index
+import_country: Кыргызстан   # Country name to import
+```
+
 ### Contributing
 1. Fork it ( https://github.com/maddevsio/ariadna/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
